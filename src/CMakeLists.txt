@@ -10,3 +10,5 @@ foreach(SUBDIR ${SUBDIR_LIST})
         add_subdirectory(${SUBDIR})
     endif()
 endforeach()
+
+add_executable(mvm main.cpp)

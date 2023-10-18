@@ -9,6 +9,7 @@
 #define VERILATED_VMUX_H_  // guard
 
 #include "verilated.h"
+#include "verilated_cov.h"
 
 class Vmux__Syms;
 class Vmux___024root;

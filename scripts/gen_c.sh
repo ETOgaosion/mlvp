@@ -48,9 +48,9 @@ mkdir -p tmp/design
 
 # Generate C++ code using Verilator
 if [ "$debug" = "true" ]; then
-    verilator --cc -O0 --debug --Mdir tmp/design ${design_base}/${design_module}/${design_file}
+    verilator --cc -O0 --coverage --debug --Mdir tmp/design ${design_base}/${design_module}/${design_file}
 else
-    verilator --cc -O3 --Mdir tmp/design ${design_base}/${design_module}/${design_file}
+    verilator --cc -O3 --coverage --Mdir tmp/design ${design_base}/${design_module}/${design_file}
 fi
 
 design_file_no_suffix=${design_file%.*}

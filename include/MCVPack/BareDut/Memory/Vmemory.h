@@ -9,6 +9,7 @@
 #define VERILATED_VMEMORY_H_  // guard
 
 #include "verilated.h"
+#include "verilated_cov.h"
 
 class Vmemory__Syms;
 class Vmemory___024root;

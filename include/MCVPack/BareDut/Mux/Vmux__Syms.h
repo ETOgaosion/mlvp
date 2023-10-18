@@ -29,6 +29,9 @@ class alignas(VL_CACHE_LINE_BYTES)Vmux__Syms final : public VerilatedSyms {
     Vmux___024root                 TOP;
     Vmux_mux                       TOP__mux;
 
+    // COVERAGE
+    std::atomic<uint32_t> __Vcoverage[7];
+
     // CONSTRUCTORS
     Vmux__Syms(VerilatedContext* contextp, const char* namep, Vmux* modelp);
     ~Vmux__Syms();

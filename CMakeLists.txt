@@ -24,3 +24,4 @@ set(VERILATOR_INCLUDE_DIRS ${VERILATOR_ACTUAL_ROOT}/include)
 include_directories(${VERILATOR_INCLUDE_DIRS})
 
 add_subdirectory(src)
+add_subdirectory(tools)

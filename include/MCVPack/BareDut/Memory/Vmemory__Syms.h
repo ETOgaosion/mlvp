@@ -29,6 +29,9 @@ class alignas(VL_CACHE_LINE_BYTES)Vmemory__Syms final : public VerilatedSyms {
     Vmemory___024root              TOP;
     Vmemory_memory                 TOP__memory;
 
+    // COVERAGE
+    std::atomic<uint32_t> __Vcoverage[62];
+
     // CONSTRUCTORS
     Vmemory__Syms(VerilatedContext* contextp, const char* namep, Vmemory* modelp);
     ~Vmemory__Syms();
