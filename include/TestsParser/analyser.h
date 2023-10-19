@@ -1,5 +1,7 @@
 #pragma once
 
+#include <memory>
+
 #include "TestsParser/testcases.h"
 #include "Library/types.h"
 
@@ -8,25 +10,25 @@ namespace TestsParser {
 class Analyser
 {
 private:
-    TestCases testCases;
+    std::shared_ptr<TestCases> testCases;
     MVM::Library::Degree checkDegree;
 
 public:
     Analyser() = delete;
     ~Analyser() = default;
 
-    Analyser(TestCases inTestCases);
-    Analyser(TestCases inTestCases, MVM::Library::Degree inCheckDegree);
+    Analyser(std::shared_ptr<TestCases> inTestCases);
+    Analyser(std::shared_ptr<TestCases> inTestCases, MVM::Library::Degree inCheckDegree);
 
     /* process the tests: check validity, use port width to cutting input */
     bool processTests();
     
     int getTestSize() {
-        return testCases.getTestsSize();
+        return testCases->getTestsSize();
     }
 
     const std::vector<std::vector<unsigned long>> & getTests() {
-        return testCases.getTests();
+        return testCases->getTests();
     }
 };
 

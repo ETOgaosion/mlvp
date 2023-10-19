@@ -5,13 +5,13 @@ using namespace std;
 using namespace MVM::TestsParser;
 using namespace MVM::Library;
 
-Analyser::Analyser(TestCases inTestCases) {
+Analyser::Analyser(std::shared_ptr<TestCases> inTestCases) {
     testCases = inTestCases;
     checkDegree = Degree::SKIP;
     processTests();
 }
 
-Analyser::Analyser(TestCases inTestCases, Degree inCheckDegree) {
+Analyser::Analyser(std::shared_ptr<TestCases> inTestCases, Degree inCheckDegree) {
     testCases = inTestCases;
     checkDegree = inCheckDegree;
     bool res = processTests();
@@ -21,7 +21,7 @@ Analyser::Analyser(TestCases inTestCases, Degree inCheckDegree) {
 }
 
 bool Analyser::processTests() {
-    vector<vector<unsigned long>> tests = testCases.getTests();
+    vector<vector<unsigned long>> tests = testCases->getTests();
     vector<int> errorIndex;
     auto portsIn = Database::DesignPorts::getInstance().getPortsIn();
     auto portsInLen = Database::DesignPorts::getInstance().getPortsInLen();
@@ -41,11 +41,11 @@ bool Analyser::processTests() {
             for (auto in_it = (*it).begin(); in_it != (*it).end(); in_it++) {
                 *in_it = *in_it & ((1 << portsInLen[in_it - (*it).begin()]) - 1);
             }
-            testCases.setTest(it - tests.begin() - errorIndex.size(), *it);
+            testCases->setTest(it - tests.begin() - errorIndex.size(), *it);
         }
     }
     for (auto index : errorIndex) {
-        testCases.removeTest(index);
+        testCases->removeTest(index);
     }
     return true;
 }
