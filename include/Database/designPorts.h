@@ -6,7 +6,7 @@
 
 #include "Database/designPortsGen.h"
 
-namespace MCM {
+namespace MVM {
 namespace Database {
 class DesignPorts {
 private:
@@ -72,4 +72,4 @@ public:
 
 } // namespace Database
     
-} // namespace MCM
+} // namespace MVM

@@ -1,24 +1,38 @@
 #pragma once
 
-namespace MCM {
+#include <memory>
+
+#include "TransactionLauncher/transaction.h"
+
+namespace MVM {
 namespace Database {
-class Transaction
+class TransactionDatabase
 {
 private:
-    /* data */
+    std::vector<std::shared_ptr<MVM::TransactionLauncher::Transaction>> transactions;
+
+    TransactionDatabase() = default;
+
 public:
-    Transaction(/* args */);
-    ~Transaction();
+    ~TransactionDatabase() = default;
+
+    TransactionDatabase(TransactionDatabase const &) = delete;
+    void operator=(TransactionDatabase const &) = delete;
+
+    static TransactionDatabase & getInstance() {
+        static TransactionDatabase instance;
+        return instance;
+    }
+
+    void addTransaction(std::shared_ptr<MVM::TransactionLauncher::Transaction> transaction) {
+        transactions.push_back(transaction);
+    }
+
+    std::shared_ptr<MVM::TransactionLauncher::Transaction> getTransaction(int index) {
+        return transactions[index];
+    }
 };
-
-Transaction::Transaction(/* args */)
-{
-}
-
-Transaction::~Transaction()
-{
-}
 
 } // namespace Database
     
-} // namespace MCM
+} // namespace MVM
