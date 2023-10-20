@@ -13,19 +13,23 @@ private:
     std::unordered_map<std::string, int> portsIn;
     std::vector<std::string> portsInName;
     std::vector<int> portsInLen;
+    int portsInSize;
     std::unordered_map<std::string, int> portsOut;
     std::vector<std::string> portsOutName;
     std::vector<int> portsOutLen;
+    int portsOutSize;
 
     DesignPorts() : portsIn PORT_IN_INFO, portsOut PORT_OUT_INFO {
         for (const auto & port : portsIn) {
             portsInName.push_back(port.first);
             portsInLen.push_back(port.second);
         }
+        portsInSize = portsInLen.size();
         for (const auto & port : portsOut) {
             portsOutName.push_back(port.first);
             portsOutLen.push_back(port.second);
         }
+        portsOutSize = portsOutLen.size();
     }
 public:
     DesignPorts(DesignPorts const &) = delete;
@@ -40,7 +44,7 @@ public:
         return portsIn;
     }
 
-    int getPortInLen(const std::string & portName) {
+    int getPortsInLen(const std::string & portName) {
         return portsIn[portName];
     }
 
@@ -56,7 +60,7 @@ public:
         return portsOut;
     }
 
-    int getPortOutLen(const std::string & portName) {
+    int getPortsOutLen(const std::string & portName) {
         return portsOut[portName];
     }
 
@@ -66,6 +70,14 @@ public:
 
     const std::vector<int> & getPortsOutLen() {
         return portsOutLen;
+    }
+
+    int getPortsInSize() {
+        return portsInSize;
+    }
+
+    int getPortsOutSize() {
+        return portsOutSize;
     }
     
 };

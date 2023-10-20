@@ -4,24 +4,28 @@
 #include <memory>
 
 namespace MVM {
-namespace TestsParser {
-class TestCases
+namespace Sequencer {
+typedef std::vector<std::vector<unsigned long>> TestCase;
+
+typedef std::vector<TestCase> TestCases;
+
+class TestCaseSet
 {
 private:
-    std::vector<std::vector<unsigned long>> tests;
+    TestCases tests;
     int testsSize;
 
 public:
-    TestCases() = default;
-    ~TestCases() = default;
+    TestCaseSet() = default;
+    ~TestCaseSet() = default;
 
     /* only use input signals */
-    TestCases(std::vector<std::vector<unsigned long>> inTests) {
+    TestCaseSet(TestCases inTests) {
         tests = inTests;
         testsSize = tests.size();
     }
 
-    const std::vector<std::vector<unsigned long>> & getTests() {
+    const TestCases & getTests() {
         return tests;
     }
 
@@ -29,17 +33,10 @@ public:
         return testsSize;
     }
 
-    bool setTest(int index, std::vector<unsigned long> test) {
+    bool setTest(int index, TestCase test) {
         if (index >= testsSize)
             return false;
         tests[index] = test;
-        return true;
-    }
-
-    bool setTest(int indexFirst, int indexSecont, unsigned long test) {
-        if (indexFirst >= testsSize || indexSecont >= tests[indexFirst].size())
-            return false;
-        tests[indexFirst][indexSecont] = test;
         return true;
     }
 

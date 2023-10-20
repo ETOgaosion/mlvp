@@ -36,7 +36,7 @@ module memory
 
   //Reset 
   always @(posedge reset) 
-    for(int i=0;i<2**ADDR_WIDTH;i++) mem[i]=8'hFF;
+    for(int i=0;i<2**ADDR_WIDTH;i++) mem[i]=8'h00;
    
   // Write data to Memory
   always @(posedge clk) 

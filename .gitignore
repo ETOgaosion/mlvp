@@ -34,6 +34,7 @@ build/*
 *.app
 
 .DS_Store
+*.bak
 *.dat
 .vscode
 .vscode/*

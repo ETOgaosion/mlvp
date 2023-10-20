@@ -1,17 +1,17 @@
-#include "TestsParser/analyser.h"
+#include "Sequencer/sequencer.h"
 #include "Database/designPorts.h"
 
 using namespace std;
-using namespace MVM::TestsParser;
+using namespace MVM::Sequencer;
 using namespace MVM::Library;
 
-Analyser::Analyser(std::shared_ptr<TestCases> inTestCases) {
+Sequencer::Sequencer(std::shared_ptr<TestCaseSet> inTestCases) {
     testCases = inTestCases;
     checkDegree = Degree::SKIP;
     processTests();
 }
 
-Analyser::Analyser(std::shared_ptr<TestCases> inTestCases, Degree inCheckDegree) {
+Sequencer::Sequencer(std::shared_ptr<TestCaseSet> inTestCases, Degree inCheckDegree) {
     testCases = inTestCases;
     checkDegree = inCheckDegree;
     bool res = processTests();
@@ -20,28 +20,21 @@ Analyser::Analyser(std::shared_ptr<TestCases> inTestCases, Degree inCheckDegree)
     }
 }
 
-bool Analyser::processTests() {
-    vector<vector<unsigned long>> tests = testCases->getTests();
+bool Sequencer::processTests() {
+    TestCases tests = testCases->getTests();
     vector<int> errorIndex;
     auto portsIn = Database::DesignPorts::getInstance().getPortsIn();
     auto portsInLen = Database::DesignPorts::getInstance().getPortsInLen();
     for (auto it = tests.begin(); it != tests.end(); it++) {
         /* check validity */
-        if (it->size() != portsIn.size()) {
+        if ((*it)[0].size() != portsIn.size()) {
             if (checkDegree == Degree::SKIP) {
                 errorIndex.push_back(it - tests.begin() - errorIndex.size());
             }
             else if (checkDegree == Degree::HIGH)
-                throw "[ERROR] Analyser > Test size does not match with design ports size";
+                throw "[ERROR] Sequencer > Test size does not match with design ports size";
             else
                 return false;
-        }
-        else {
-            /* use port width to cut tests */
-            for (auto in_it = (*it).begin(); in_it != (*it).end(); in_it++) {
-                *in_it = *in_it & ((1 << portsInLen[in_it - (*it).begin()]) - 1);
-            }
-            testCases->setTest(it - tests.begin() - errorIndex.size(), *it);
         }
     }
     for (auto index : errorIndex) {

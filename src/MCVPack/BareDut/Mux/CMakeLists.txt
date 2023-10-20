@@ -1,1 +1,1 @@
-target_link_libraries(dut Vmux__ALL.a)
+target_link_libraries(MuxDut Vmux__ALL.a)
