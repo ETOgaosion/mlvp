@@ -5,27 +5,27 @@
 
 namespace MVM {
 namespace Sequencer {
-typedef std::vector<std::vector<unsigned long>> TestCase;
+typedef std::vector<std::vector<unsigned long>> SerialTest;
 
-typedef std::vector<TestCase> TestCases;
+typedef std::vector<SerialTest> SerialTestsSet;
 
 class TestCaseSet
 {
 private:
-    TestCases tests;
+    SerialTestsSet tests;
     int testsSize;
 
 public:
     TestCaseSet() = default;
-    ~TestCaseSet() = default;
+    
 
     /* only use input signals */
-    TestCaseSet(TestCases inTests) {
+    TestCaseSet(SerialTestsSet inTests) {
         tests = inTests;
         testsSize = tests.size();
     }
 
-    const TestCases & getTests() {
+    const SerialTestsSet & getTests() {
         return tests;
     }
 
@@ -33,7 +33,7 @@ public:
         return testsSize;
     }
 
-    bool setTest(int index, TestCase test) {
+    bool setTest(int index, SerialTest test) {
         if (index >= testsSize)
             return false;
         tests[index] = test;

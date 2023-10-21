@@ -56,10 +56,10 @@ fi
 design_file_no_suffix=${design_file%.*}
 echo "Design file without suffix: ${design_file_no_suffix}"
 
-cd tmp/design && make -f V${design_file_no_suffix}.mk && cd ../..
+# cd tmp/design && make -f V${design_file_no_suffix}.mk && cd ../..
 
-# Move the generated *.c file to the design module directory
-mv tmp/design/V*.a ${design_base}/${design_module}/
+# # Move the generated *.c file to the design module directory
+# mv tmp/design/V*.a ${design_base}/${design_module}/
 
 # Move the generated *.h file to the target include path
 mv tmp/design/V*.h ${include_base}/${design_module}/

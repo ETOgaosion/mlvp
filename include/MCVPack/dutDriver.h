@@ -1,24 +1,25 @@
 #pragma once
 
+#include <string>
 #include <memory>
 
 #include "Driver/driverModel.h"
-#include "MCVPack/BareDut/Memory/memoryDriver.h"
 #include "Transaction/transaction.h"
 
 namespace MVM {
 namespace MCVPack {
+template <class T>
 class DutDriver : public MVM::Driver::DriverModel {
 private:
-    MemoryDriver memoryDriver;
+    std::unique_ptr<MVM::Driver::DriverModel> dut;
 
 public:
     DutDriver() = delete;
     ~DutDriver() = default;
-    DutDriver(std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : memoryDriver(inTransaction) {}
+    DutDriver(int inDriverID, std::string inLogPath, std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : dut(std::make_unique<T>(inDriverID, inLogPath, inTransaction)) {}
 
     bool drivingStep() override {
-        return memoryDriver.drivingStep();
+        return dut->drivingStep();
     }
 
 };

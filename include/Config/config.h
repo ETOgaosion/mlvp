@@ -14,7 +14,7 @@ private:
 
 public:
     Config() = delete;
-    ~Config() = default;
+    
 
     Config(std::string configPath);
 };

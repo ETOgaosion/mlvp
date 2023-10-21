@@ -15,7 +15,7 @@ private:
 
 public:
     Sequencer() = delete;
-    ~Sequencer() = default;
+    
 
     Sequencer(std::shared_ptr<TestCaseSet> inTestCases);
     Sequencer(std::shared_ptr<TestCaseSet> inTestCases, MVM::Library::Degree inCheckDegree);
@@ -27,7 +27,7 @@ public:
         return testCases->getTestsSize();
     }
 
-    const TestCases & getTests() {
+    const SerialTestsSet & getTests() {
         return testCases->getTests();
     }
 };

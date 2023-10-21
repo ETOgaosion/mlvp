@@ -5,7 +5,7 @@
 using namespace std;
 using namespace MVM::MCVPack;
 
-bool MemoryDriver::drivingStep() {
+bool DutMemoryDriver::drivingStep() {
     if(!contextp->gotFinish() && executeCycles != transaction->getMaxCycles() && testPtr < transaction->getTestsSize()) {
         executeCycles++;
         contextp->timeInc(1);
@@ -34,8 +34,8 @@ bool MemoryDriver::drivingStep() {
     }
     else {
         top->final();
-        Verilated::mkdir("logs/memory");
-        contextp->coveragep()->write("logs/memory/coverage.dat");
+        Verilated::mkdir(logPath.c_str());
+        contextp->coveragep()->write((logPath + "/Driver" + to_string(driverID) + "/coverage.dat").c_str());
         
         return false;
     }

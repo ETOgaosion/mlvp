@@ -1,1 +1,0 @@
-target_link_libraries(MuxDut Vmux__ALL.a)

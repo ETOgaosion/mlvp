@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_VERBOSE_MAKEFILE OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
+set(CMAKE_VERBOSE_MAKEFILE ON)
 add_definitions(-DCMAKE_EXPORT_COMPILE_COMMANDS=ON)
 
 set(CMAKE_BUILD_TYPE "Debug")
@@ -22,6 +23,10 @@ find_package(verilator HINTS ${VERILATOR_ACTUAL_ROOT})
 
 set(VERILATOR_INCLUDE_DIRS ${VERILATOR_ACTUAL_ROOT}/include)
 include_directories(${VERILATOR_INCLUDE_DIRS})
+
+include_directories(include)
+
+add_definitions( -DUSE_THREADS=false )
 
 add_subdirectory(src)
 add_subdirectory(tools)

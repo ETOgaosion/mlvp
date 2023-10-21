@@ -4,8 +4,8 @@
 #include <memory>
 #include <mutex>
 
-#include <Sequencer/sequencer.h>
-#include <Sequencer/testcases.h>
+#include "Sequencer/sequencer.h"
+#include "Sequencer/testcases.h"
 
 namespace MVM {
 namespace Transaction {
@@ -37,9 +37,9 @@ struct TransactionItem
 {
     unsigned long cycles;
     unsigned long maxCycles;
-    MVM::Sequencer::TestCase inSignal;
-    MVM::Sequencer::TestCase dutOutSignal;
-    MVM::Sequencer::TestCase refOutSignal;
+    MVM::Sequencer::SerialTest inSignal;
+    MVM::Sequencer::SerialTest dutOutSignal;
+    MVM::Sequencer::SerialTest refOutSignal;
 };
 
 class Transaction
@@ -51,11 +51,11 @@ private:
 
 public:
     Transaction() = delete;
-    ~Transaction() = default;
+    
 
     Transaction(Transaction const &) = delete;
 
-    Transaction(unsigned long maxCycles, MVM::Sequencer::TestCase test);
+    Transaction(unsigned long maxCycles, MVM::Sequencer::SerialTest test);
 
     void setDutOutSignal(int index, std::vector<unsigned long> dutOutSignal) {
         std::lock_guard<std::mutex> lock(transactionMutex);
@@ -76,15 +76,15 @@ public:
         return transactionID;
     }
 
-    const MVM::Sequencer::TestCase & getInSignal() {
+    const MVM::Sequencer::SerialTest & getInSignal() {
         return transactionItems.inSignal;
     }
 
-    const MVM::Sequencer::TestCase & getDutOutSignal() {
+    const MVM::Sequencer::SerialTest & getDutOutSignal() {
         return transactionItems.dutOutSignal;
     }
 
-    const MVM::Sequencer::TestCase & getRefOutSignal() {
+    const MVM::Sequencer::SerialTest & getRefOutSignal() {
         return transactionItems.refOutSignal;
     }
 
@@ -111,9 +111,9 @@ private:
 
 public:
     TransactionLauncher() = delete;
-    ~TransactionLauncher() = delete;
+    
 
-    static int launchTransaction(MVM::Sequencer::Sequencer & sequencer);
+    static int setupTransaction(unsigned long maxCycles, std::shared_ptr<MVM::Sequencer::Sequencer> sequencer);
 
 };
 

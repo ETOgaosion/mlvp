@@ -4,7 +4,7 @@
 using namespace std;
 using namespace MVM::RefPack;
 
-bool MemoryDriver::drivingStep() {
+bool RefMemoryDriver::drivingStep() {
     if (testPtr < transaction->getTestsSize()) {
         executeCycles++;
         time++;

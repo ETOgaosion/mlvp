@@ -14,7 +14,7 @@ private:
     TransactionDatabase() = default;
 
 public:
-    ~TransactionDatabase() = default;
+    
 
     TransactionDatabase(TransactionDatabase const &) = delete;
     void operator=(TransactionDatabase const &) = delete;
@@ -30,6 +30,10 @@ public:
 
     std::shared_ptr<MVM::Transaction::Transaction> getTransaction(int index) {
         return transactions[index];
+    }
+
+    int getTransactionSize() {
+        return transactions.size();
     }
 };
 

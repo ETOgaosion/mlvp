@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <memory>
 #include <verilated.h>
 
@@ -9,7 +10,7 @@
 
 namespace MVM {
 namespace MCVPack {
-class MemoryDriver : public MVM::Driver::DriverModel {
+class DutMemoryDriver : public MVM::Driver::DriverModel {
 private:
     const std::unique_ptr<VerilatedContext> contextp;
     const std::unique_ptr<Vmemory> top;
@@ -17,10 +18,14 @@ private:
     unsigned long testPtr;
     
 public:
-    MemoryDriver() = delete;
-    ~MemoryDriver() = default;
+    DutMemoryDriver() = delete;
+    ~DutMemoryDriver() = default;
 
-    MemoryDriver(std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : MVM::Driver::DriverModel(inTransaction), contextp(new VerilatedContext), top(new Vmemory{contextp.get(), "top"}), executeCycles(0), testPtr(0) {
+    DutMemoryDriver(int inDriverID, std::string inLogPath, std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : MVM::Driver::DriverModel(inDriverID, inLogPath, inTransaction), contextp(std::make_unique<VerilatedContext>()), top(std::make_unique<Vmemory>(contextp.get(), "top")), executeCycles(0), testPtr(0) {
+        Verilated::mkdir(inLogPath.c_str());
+        contextp->debug(0);
+        contextp->randReset(2);
+        contextp->traceEverOn(true);
         top->clk = 0;
         top->reset = 1;
     }
