@@ -24,7 +24,7 @@ private:
 public:
     Spreader() = delete;
     ~Spreader() = default;
-    Spreader(std::string inLogPath, std::string inReportPath) {
+    Spreader(std::string inLogPath, std::string inReportPath) : reporter(std::make_unique<TReport>(inLogPath, inReportPath)) {
         driver.clear();
         threadsPools.clear();
         for (int i = 0; i < MVM::Database::TransactionDatabase::getInstance().getTransactionSize(); i++) {

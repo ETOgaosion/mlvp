@@ -3,6 +3,7 @@
 #include <iostream>
 #include <string>
 #include <memory>
+#include <future>
 
 #include "Database/designPorts.h"
 #include "MCVPack/BareDut/Memory/memoryDriver.h"
@@ -26,16 +27,17 @@ public:
     Driver(int inDriverID, std::string inLogPath, std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : transaction(inTransaction), dutDriver(std::make_unique<MVM::MCVPack::DutDriver<TDut>>(inDriverID, inLogPath, inTransaction)), refDriver(std::make_unique<MVM::RefPack::RefDriver<TRef>>(inTransaction)) {}
 
     int driving(std::shared_ptr<std::string> errorMsgRaw) {
+        bool dutResult, refResult;
         for (int i = 0; i < transaction->getTestsSize(); i++) {
             if (USE_THREADS) {
-                std::thread dutThread(&MVM::Driver::DriverModel::drivingStep, dutDriver.get());
-                std::thread refThread(&MVM::Driver::DriverModel::drivingStep, refDriver.get());
-                dutThread.join();
-                refThread.join();
+                auto dutFuture = std::async(std::launch::async, &MVM::Driver::DriverModel::drivingStep, dutDriver.get());
+                auto refFuture = std::async(std::launch::async, &MVM::Driver::DriverModel::drivingStep, refDriver.get());
+                dutResult = dutFuture.get();
+                refResult = refFuture.get();
             }
             else {
-                dutDriver->drivingStep();
-                refDriver->drivingStep();
+                dutResult = dutDriver->drivingStep();
+                refResult = refDriver->drivingStep();
             }
             if (!transaction->compareRefDut(i)) {
                 std::string *errorMsg = errorMsgRaw.get();
@@ -52,6 +54,9 @@ public:
                     *errorMsg += std::to_string(transaction->getRefOutSignal()[i][j]) + " ";
                 }
                 return i;
+            }
+            if (!dutResult || !refResult) {
+                std::cout << "[NOTICE] Driver > TERMINATED" << std::endl;
             }
         }
         return -1;

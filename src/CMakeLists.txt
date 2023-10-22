@@ -27,7 +27,7 @@ main.cpp
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/src/MCVPack/BareDut/Memory/memory.sv TOP_MODULE memory COVERAGE OPT_SLOW TRACE)
-    # verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/src/MCVPack/BareDut/Mux/mux.v TOP_MODULE memory COVERAGE OPT_FAST TRACE)
+    # verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/src/MCVPack/BareDut/Mux/mux.v TOP_MODULE memory COVERAGE OPT_SLOW TRACE)
 else ()
     verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/src/MCVPack/BareDut/Memory/memory.sv TOP_MODULE memory COVERAGE OPT_FAST TRACE)
     # verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/src/MCVPack/BareDut/Mux/mux.v TOP_MODULE memory COVERAGE OPT_FAST TRACE)

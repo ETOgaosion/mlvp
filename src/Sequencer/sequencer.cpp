@@ -32,7 +32,7 @@ bool Sequencer::processTests() {
                 errorIndex.push_back(it - tests.begin() - errorIndex.size());
             }
             else if (checkDegree == Degree::HIGH)
-                throw "[ERROR] Sequencer > Test size does not match with design ports size";
+                throw std::runtime_error("[ERROR] Sequencer > Test size does not match with design ports size");
             else
                 return false;
         }

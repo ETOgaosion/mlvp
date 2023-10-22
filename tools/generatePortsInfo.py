@@ -22,7 +22,7 @@ def generate_ports_info(module, file):
     ports_in_len = []
     ports_out_len = []
     
-    skip_ports = ['clk', 'clock', 'rst', 'reset', 'rst_n', 'reset_n', 'resetn'];
+    skip_ports = ['clk', 'clock'];
     with open(path, 'r') as f:
         pattern_in = r'VL_IN(\d+)\(&(\w+),(\d+),0\);'
         pattern_out = r'VL_OUT(\d+)\(&(\w+),(\d+),0\);'

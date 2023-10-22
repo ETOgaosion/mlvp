@@ -40,10 +40,12 @@ module memory
    
   // Write data to Memory
   always @(posedge clk) 
-    if (wr_en)    mem[addr] <= wdata;
-
-  // Read data from memory
-  always @(posedge clk)
-    if (rd_en) rdata <= mem[addr];
+    if (reset)
+      for(int i=0;i<2**ADDR_WIDTH;i++) mem[i]=8'h00;
+    else
+    begin
+      if (wr_en)    mem[addr] <= wdata;
+      if (rd_en)    rdata <= mem[addr];
+    end
 
 endmodule

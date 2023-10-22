@@ -20,8 +20,7 @@ public:
     RefMemoryDriver() = delete;
     ~RefMemoryDriver() = default;
     RefMemoryDriver(std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : MVM::Driver::DriverModel(0, {}, inTransaction), top(std::make_unique<Memory>()), executeCycles(0), testPtr(0), time(0) {
-        top->clk = 0;
-        top->reset = 1;
+        top->clk = 1;
     }
 
     /* just execute one test */
