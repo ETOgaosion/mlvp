@@ -11,13 +11,13 @@ private:
     unsigned short mem[4];
 
 public:
-    unsigned long clk;
-    unsigned long reset;
-    unsigned long addr;
-    unsigned long wr_en;
-    unsigned long rd_en;
-    unsigned long wdata;
-    unsigned long rdata;
+    unsigned long long clk;
+    unsigned long long reset;
+    unsigned long long addr;
+    unsigned long long wr_en;
+    unsigned long long rd_en;
+    unsigned long long wdata;
+    unsigned long long rdata;
 
     Memory() {
         memset(mem, 0, sizeof(mem));   

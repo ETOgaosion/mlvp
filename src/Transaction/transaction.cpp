@@ -6,7 +6,7 @@ using namespace MVM::Transaction;
 using namespace MVM::Database;
 using namespace MVM::Sequencer;
 
-Transaction::Transaction(unsigned long maxCycles, MVM::Sequencer::SerialTest test) {
+Transaction::Transaction(unsigned long long maxCycles, MVM::Sequencer::SerialTest test) {
     transactionID = TransactionCounter::getInstance().getTransactionID();
     transactionItems.cycles = 0;
     transactionItems.maxCycles = maxCycles;
@@ -15,7 +15,7 @@ Transaction::Transaction(unsigned long maxCycles, MVM::Sequencer::SerialTest tes
     transactionItems.refOutSignal.resize(test.size());
 }
 
-int TransactionLauncher::setupTransaction(unsigned long maxCycles, std::shared_ptr<MVM::Sequencer::Sequencer> sequencer) {
+int TransactionLauncher::setupTransaction(unsigned long long maxCycles, std::shared_ptr<MVM::Sequencer::Sequencer> sequencer) {
     auto tests = sequencer->getTests();
     for (auto & test : tests) {
         auto transactionPtr = make_shared<Transaction>(maxCycles, test);

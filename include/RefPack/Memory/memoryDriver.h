@@ -12,9 +12,9 @@ namespace RefPack {
 class RefMemoryDriver : public MVM::Driver::DriverModel {
 private:
     std::unique_ptr<Memory> top;
-    unsigned long executeCycles;
-    unsigned long testPtr;
-    unsigned long time;
+    unsigned long long executeCycles;
+    unsigned long long testPtr;
+    unsigned long long time;
 
 public:
     RefMemoryDriver() = delete;

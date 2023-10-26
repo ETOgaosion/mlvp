@@ -27,6 +27,7 @@ include_directories(${VERILATOR_INCLUDE_DIRS})
 include_directories(include)
 
 add_definitions( -DUSE_THREADS=false )
+add_definitions( -DBUGDEGREE=Degree::LOW )
 
 add_subdirectory(src)
 add_subdirectory(tools)

@@ -5,7 +5,7 @@
 
 namespace MVM {
 namespace Sequencer {
-typedef std::vector<std::vector<unsigned long>> SerialTest;
+typedef std::vector<std::vector<unsigned long long>> SerialTest;
 
 typedef std::vector<SerialTest> SerialTestsSet;
 

@@ -7,15 +7,8 @@ using namespace MVM::Library;
 
 Sequencer::Sequencer(std::shared_ptr<TestCaseSet> inTestCases) {
     testCases = inTestCases;
-    checkDegree = Degree::SKIP;
-    processTests();
-}
-
-Sequencer::Sequencer(std::shared_ptr<TestCaseSet> inTestCases, Degree inCheckDegree) {
-    testCases = inTestCases;
-    checkDegree = inCheckDegree;
     bool res = processTests();
-    if (!res && (checkDegree == Degree::LOW || checkDegree == Degree::MEDIUM)) {
+    if (!res && (bugHandleDegree == Degree::LOW || bugHandleDegree == Degree::MEDIUM)) {
         printf("Warning: Test size does not match with design ports size\n");
     }
 }
@@ -28,10 +21,10 @@ bool Sequencer::processTests() {
     for (auto it = tests.begin(); it != tests.end(); it++) {
         /* check validity */
         if ((*it)[0].size() != portsIn.size()) {
-            if (checkDegree == Degree::SKIP) {
+            if (bugHandleDegree == Degree::SKIP) {
                 errorIndex.push_back(it - tests.begin() - errorIndex.size());
             }
-            else if (checkDegree == Degree::HIGH)
+            else if (bugHandleDegree == Degree::HIGH)
                 throw std::runtime_error("[ERROR] Sequencer > Test size does not match with design ports size");
             else
                 return false;

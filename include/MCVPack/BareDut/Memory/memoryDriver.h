@@ -16,8 +16,8 @@ private:
     const std::unique_ptr<VerilatedContext> contextp;
     const std::unique_ptr<Vmemory> top;
     const std::unique_ptr<VerilatedVcdC> tfp;
-    unsigned long executeCycles;
-    unsigned long testPtr;
+    unsigned long long executeCycles;
+    unsigned long long testPtr;
     
 public:
     DutMemoryDriver() = delete;

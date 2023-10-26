@@ -3,7 +3,7 @@
 #include <memory>
 
 #include "Sequencer/testcases.h"
-#include "Library/types.h"
+#include "Library/error.h"
 
 namespace MVM {
 namespace Sequencer {
@@ -11,14 +11,12 @@ class Sequencer
 {
 private:
     std::shared_ptr<TestCaseSet> testCases;
-    MVM::Library::Degree checkDegree;
 
 public:
     Sequencer() = delete;
     
 
     Sequencer(std::shared_ptr<TestCaseSet> inTestCases);
-    Sequencer(std::shared_ptr<TestCaseSet> inTestCases, MVM::Library::Degree inCheckDegree);
 
     /* process the tests: check validity, use port width to cutting input */
     bool processTests();

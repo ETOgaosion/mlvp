@@ -13,7 +13,7 @@ namespace Transaction {
 class TransactionCounter
 {
 private:
-    unsigned long transactionBaseID;
+    unsigned long long transactionBaseID;
     std::mutex transactionCounterMutex;
 
     TransactionCounter() : transactionBaseID(0) {}
@@ -27,7 +27,7 @@ public:
         return instance;
     }
 
-    unsigned long getTransactionID() {
+    unsigned long long getTransactionID() {
         std::lock_guard<std::mutex> lock(transactionCounterMutex);
         return transactionBaseID++;
     }
@@ -35,8 +35,8 @@ public:
 
 struct TransactionItem
 {
-    unsigned long cycles;
-    unsigned long maxCycles;
+    unsigned long long cycles;
+    unsigned long long maxCycles;
     MVM::Sequencer::SerialTest inSignal;
     MVM::Sequencer::SerialTest dutOutSignal;
     MVM::Sequencer::SerialTest refOutSignal;
@@ -45,7 +45,7 @@ struct TransactionItem
 class Transaction
 {
 private:
-    unsigned long transactionID;
+    unsigned long long transactionID;
     std::mutex transactionMutex;
     TransactionItem transactionItems;
 
@@ -55,14 +55,14 @@ public:
 
     Transaction(Transaction const &) = delete;
 
-    Transaction(unsigned long maxCycles, MVM::Sequencer::SerialTest test);
+    Transaction(unsigned long long maxCycles, MVM::Sequencer::SerialTest test);
 
-    void setDutOutSignal(int index, std::vector<unsigned long> dutOutSignal) {
+    void setDutOutSignal(int index, std::vector<unsigned long long> dutOutSignal) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.dutOutSignal[index] = dutOutSignal;
     }
 
-    void setRefOutSignal(int index, std::vector<unsigned long> refOutSignal) {
+    void setRefOutSignal(int index, std::vector<unsigned long long> refOutSignal) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.refOutSignal[index] = refOutSignal;
     }
@@ -72,7 +72,7 @@ public:
         transactionItems.cycles = cycles;
     }
 
-    unsigned long getTransactionID() {
+    unsigned long long getTransactionID() {
         return transactionID;
     }
 
@@ -88,11 +88,11 @@ public:
         return transactionItems.refOutSignal;
     }
 
-    unsigned long getCycles() {
+    unsigned long long getCycles() {
         return transactionItems.cycles;
     }
 
-    unsigned long getMaxCycles() {
+    unsigned long long getMaxCycles() {
         return transactionItems.maxCycles;
     }
 
@@ -113,7 +113,7 @@ public:
     TransactionLauncher() = delete;
     
 
-    static int setupTransaction(unsigned long maxCycles, std::shared_ptr<MVM::Sequencer::Sequencer> sequencer);
+    static int setupTransaction(unsigned long long maxCycles, std::shared_ptr<MVM::Sequencer::Sequencer> sequencer);
 
 };
 
