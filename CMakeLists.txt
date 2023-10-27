@@ -25,6 +25,7 @@ set(VERILATOR_INCLUDE_DIRS ${VERILATOR_ACTUAL_ROOT}/include)
 include_directories(${VERILATOR_INCLUDE_DIRS})
 
 include_directories(include)
+include_directories(third-party/include)
 
 add_definitions( -DUSE_THREADS=false )
 add_definitions( -DBUGDEGREE=Degree::LOW )

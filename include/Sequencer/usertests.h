@@ -2,17 +2,29 @@
 
 #include <vector>
 #include <memory>
+#include <string>
 
 #include "Sequencer/testcases.h"
 
 namespace MVM {
 namespace Sequencer {
-const static SerialTestsSet userTest = {
-    {{1, 0, 0, 0, 0}, {1, 0, 0, 0, 0}, {0, 1, 1, 0, 1}, {0, 1, 1, 0, 1}, {0, 1, 0, 1, 0}, {0, 1, 0, 1, 0}},
-    {{1, 0, 0, 0, 0}, {1, 0, 0, 0, 0}, {0, 2, 1, 0, 2}, {0, 2, 1, 0, 2}, {0, 2, 0, 1, 0}, {0, 2, 0, 1, 0}},
-    {{1, 0, 0, 0, 0}, {1, 0, 0, 0, 0}, {0, 3, 1, 0, 3}, {0, 3, 1, 0, 3}, {0, 3, 0, 1, 0}, {0, 3, 0, 1, 0}},
-    {{1, 0, 0, 0, 0}, {1, 0, 0, 0, 0}, {0, 4, 1, 0, 4}, {0, 4, 1, 0, 4}, {0, 4, 0, 1, 0}, {0, 4, 0, 1, 0}},
+class UserTest {
+private:
+    std::shared_ptr<TestCaseSet> userTest;
+
+public:
+    UserTest() = delete;
+    ~UserTest() = default;
+    UserTest(std::shared_ptr<TestCaseSet> inUserTest) : userTest(inUserTest) {}
+
+    void generateUserTest(std::string testFilePath = "data/userTest.json");
+
+    std::shared_ptr<TestCaseSet> getUserTest() {
+        return userTest;
+    }
+
 };
+
 
 } // namespace Sequencer
     

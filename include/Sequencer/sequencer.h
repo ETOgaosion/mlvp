@@ -16,10 +16,7 @@ public:
     Sequencer() = delete;
     
 
-    Sequencer(std::shared_ptr<TestCaseSet> inTestCases);
-
-    /* process the tests: check validity, use port width to cutting input */
-    bool processTests();
+    Sequencer(std::shared_ptr<TestCaseSet> inTestCases) : testCases(inTestCases) {}
     
     int getTestSize() {
         return testCases->getTestsSize();

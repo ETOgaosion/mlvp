@@ -21,7 +21,10 @@ using namespace MVM::MCVPack;
 using namespace MVM::RefPack;
 
 int main() {
-    std::shared_ptr<Sequencer> sequencer = std::make_shared<Sequencer>(std::make_shared<TestCaseSet>(userTest));
+    std::shared_ptr<TestCaseSet> testCaseSet = std::make_shared<TestCaseSet>();
+    UserTest userTest(testCaseSet);
+    userTest.generateUserTest("data/usertest.json");
+    std::shared_ptr<Sequencer> sequencer = std::make_shared<Sequencer>(userTest.getUserTest());
     TransactionLauncher::setupTransaction(1000, sequencer);
     Spreader<DutMemoryDriver, RefMemoryDriver, VerilatorReporter> spreader("log/memory", "report/memory");
     spreader.execute();

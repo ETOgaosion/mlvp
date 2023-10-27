@@ -4,52 +4,37 @@
 #include <string>
 #include <mutex>
 #include <memory>
+#include <random>
+#include <unordered_map>
 
-#include "Database/designPorts.h"
+#include "Sequencer/testcases.h"
 #include "Library/error.h"
 
 namespace MVM {
 namespace TestGenerator {
 
-static const std::string testSetFilePath = "include/Sequencer/usertests.h";
-
-static const std::string testSetFileHeader = 
-R"(#pragma once
-
-#include <vector>
-#include <memory>
-
-#include \"Sequencer/testcases.h\"
-
-namespace MVM {
-namespace Sequencer {
-const static SerialTestsSet userTest = {)";
-
-static const std::string testFileTail = 
-R"(};
-
-} // namespace Sequencer
-    
-} // namespace MVM)";
+static const std::string testSetFilePath = "data/usertest.json";
 
 class GeneratorMiddleContents {
 private:
-    std::vector<std::vector<std::vector<int>>> userTest;
+    MVM::Sequencer::SerialTestsSet userTest;
     std::mutex userTestMutex;
-    std::string testStringBuffer;
 
 public:
-    GeneratorMiddleContents() : testSetIndex(0), testIndex(0), testStringBuffer("") {}
+    GeneratorMiddleContents() {
+        userTest.clear();
+    }
     ~GeneratorMiddleContents() = default;
 
-    static bool checkTestValidity(std::vector<int> test);
+    static bool checkTestValidity(MVM::Sequencer::TestPoint test);
 
     bool generateTestSetPrepare();
+    void generateMiddleContents();
     void generateTestSetFinish();
 
-    bool addTestSet(std::vector<std::vector<int>> testSet);
-    bool addTestSet();
-    bool addTest(std::vector<int> test);
+    bool addSerialTest(MVM::Sequencer::SerialTest testSet);
+    bool addSerialTest();
+    bool addTestPoint(MVM::Sequencer::TestPoint test);
 };
 
 enum class GeneratorType {
@@ -69,11 +54,11 @@ public:
     GeneratorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : middleContents(middleContents), generatorType(GeneratorType::BASE) {}
     virtual ~GeneratorModel() = default;
 
-    virtual bool addTestSet(std::vector<std::vector<int>> testSet) { return middleContents->addTestSet(testSet); }
-    virtual bool addTestSet() { return middleContents->addTestSet(); }
+    virtual bool addSerialTest(MVM::Sequencer::SerialTest testSet) { return middleContents->addSerialTest(testSet); }
+    virtual bool addSerialTest() { return middleContents->addSerialTest(); }
 
-    virtual bool addTest(std::vector<int> test) { return middleContents->addTest(test); }
-    virtual bool addTest() { MVM::Library::FunctionNotImplementError("GeneratorModel::addTest"); return false; }
+    virtual bool addTestPoint(MVM::Sequencer::TestPoint test) { return middleContents->addTestPoint(test); }
+    virtual bool addTestPoint() { MVM::Library::FunctionNotImplementError("GeneratorModel::addTestPoint"); return false; }
 
 };
 
@@ -81,25 +66,32 @@ class DirectInputModel : public GeneratorModel {
 private:
 
 public:
-    DirectInputModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), generatorType(GeneratorType::DIRECT_INPUT) {}
+    DirectInputModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents) {
+        generatorType = GeneratorType::DIRECT_INPUT;
+    }
     ~DirectInputModel() = default;
 };
 
 class RandomGeneratorModel : public GeneratorModel {
 private:
+    std::random_device dev;
+    std::mt19937 rng;
 
 public:
-    RandomGeneratorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), generatorType(GeneratorType::RANDOM_GENERATOR) {}
+    RandomGeneratorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), rng((std::random_device())()) {
+        generatorType = GeneratorType::RANDOM_GENERATOR;
+    }
     ~RandomGeneratorModel() = default;
 
-    bool addTest(std::vector<int> test) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addTest"); }
+    bool addTestPoint(MVM::Sequencer::TestPoint test) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addTestPoint"); return false; }
 
-    bool addTestSet(std::vector<std::vector<int>> testSet) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addTestSet"); }
+    bool addSerialTest(MVM::Sequencer::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addSerialTest"); return false; }
 
-    bool addTest() override;
-    bool addTestSet() override;
+    bool addTestPoint() override;
+    bool addSerialTest() override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addSerialTest"); return false; }
     
-    bool addTestSets(int testSetNum);
+    bool addSerialTest(int testNum);
+    bool addSerialTestsSet(std::vector<int> serialTestSize);
 };
 
 struct PortTestSpec {
@@ -107,7 +99,7 @@ struct PortTestSpec {
     int startIndex;
     int endIndex;
     GeneratorType generatorType;
-    std::vector<unsigned long long> value;
+    MVM::Sequencer::TestPoint value;
 
     PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType) : portName(inPortName), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType) {}
     ~PortTestSpec() = default;
@@ -115,34 +107,30 @@ struct PortTestSpec {
 
 class PortSpecGeneratoorModel : public GeneratorModel {
 private:
-    std::vector<PortTestSpec> portTestSpecs;
+    std::unordered_map<std::string, std::vector<PortTestSpec>> portTestSpecs;
+    int maxIndex;
+    std::mt19937 rng;
 
 public:
-    PortSpecGeneratoorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), generatorType(GeneratorType::PORT_SPEC_GENERATOR) {}
+    PortSpecGeneratoorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), maxIndex(0), rng((std::random_device())()) {
+        generatorType = GeneratorType::PORT_SPEC_GENERATOR;
+    }
     ~PortSpecGeneratoorModel() = default;
+
+    bool checkPortSpec(PortTestSpec portTestSpec);
+    bool checkPortSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType);
+    bool checkAllPortSpec();
 
     bool addPortTestSpec(PortTestSpec portTestSpec);
     bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType);
-    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, std::vector<unsigned long long> value);
+    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, MVM::Sequencer::TestPoint value);
 
-    void generateTest();
+    void generateSerialTest(bool autoclear = true);
+    void clearSerialTest() { portTestSpecs.clear(); maxIndex = 0; }
 
-};
-
-class GeneratorHelper
-{
-private:
-    std::shared_ptr<GeneratorMiddleContents> middleContents;
-
-public:
-    GeneratorHelper() : middleContents(std::make_shared<GeneratorMiddleContents>()) {}
-    ~GeneratorHelper() = default;
-
-    bool generateTestSetPrepare() { return middleContents->generateTestSetPrepare(); }
-    void generateTestSetFinish() { middleContents->generateTestSetFinish(); }
-
-    bool addTestSet(std::vector<std::vector<int>> testSet) { return middleContents->addTestSet(testSet); }
-    bool addTest(std::vector<int> test) { return middleContents->addTest(test); }
+    bool addSerialTest(MVM::Sequencer::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratoorModel::addSerialTest"); return false; }
+    bool addSerialTest() override { MVM::Library::FunctionNotImplementError("PortSpecGeneratoorModel::addSerialTest"); return false; }
+    bool addTestPoint(MVM::Sequencer::TestPoint test) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratoorModel::addTestPoint"); return false; }
 
 };
 

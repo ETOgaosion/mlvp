@@ -11,7 +11,6 @@ private:
     unsigned short mem[4];
 
 public:
-    unsigned long long clk;
     unsigned long long reset;
     unsigned long long addr;
     unsigned long long wr_en;
@@ -29,13 +28,11 @@ public:
             rdata = 0;
         }
         else {
-            if (clk) {
-                if (wr_en) {
-                    mem[addr] = wdata;
-                }
-                if (rd_en) {
-                    rdata = mem[addr];
-                }
+            if (wr_en) {
+                mem[addr] = wdata;
+            }
+            if (rd_en) {
+                rdata = mem[addr];
             }
         }
 	}

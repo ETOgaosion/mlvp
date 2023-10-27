@@ -57,12 +57,12 @@ public:
 
     Transaction(unsigned long long maxCycles, MVM::Sequencer::SerialTest test);
 
-    void setDutOutSignal(int index, std::vector<unsigned long long> dutOutSignal) {
+    void setDutOutSignal(int index, MVM::Sequencer::TestPoint dutOutSignal) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.dutOutSignal[index] = dutOutSignal;
     }
 
-    void setRefOutSignal(int index, std::vector<unsigned long long> refOutSignal) {
+    void setRefOutSignal(int index, MVM::Sequencer::TestPoint refOutSignal) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.refOutSignal[index] = refOutSignal;
     }

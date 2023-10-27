@@ -30,9 +30,15 @@ bool DutMemoryDriver::drivingStep() {
         
         testPtr++;
 
-        if (testPtr == transaction->getTestsSize()) {
+        if (testPtr == transaction->getTestsSize() - 1) {
             // don't know why tfp dump lose last cycle
             contextp->timeInc(1);
+            top->clk = !top->clk;
+            top->eval();
+            tfp->dump(contextp->time());
+            contextp->timeInc(1);
+            top->clk = !top->clk;
+            top->eval();
             tfp->dump(contextp->time());
             // output coverage
             Verilated::mkdir(logPath.c_str());

@@ -10,7 +10,6 @@ bool RefMemoryDriver::drivingStep() {
         time++;
         
         // assign input signals
-        top->clk = !top->clk;
         top->reset = transaction->getInSignal()[testPtr][0];
         top->addr = transaction->getInSignal()[testPtr][1];
         top->wr_en = transaction->getInSignal()[testPtr][2];

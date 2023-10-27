@@ -5,27 +5,34 @@
 #include <string>
 
 #include "Database/designPortsGen.h"
+#include "Sequencer/testcases.h"
 
 namespace MVM {
 namespace Database {
 class DesignPorts {
 private:
     std::unordered_map<std::string, int> portsIn;
+    std::unordered_map<std::string, int> portsInIndex;
     std::vector<std::string> portsInName;
     std::vector<int> portsInLen;
     int portsInSize;
     std::unordered_map<std::string, int> portsOut;
+    std::unordered_map<std::string, int> portsOutIndex;
     std::vector<std::string> portsOutName;
     std::vector<int> portsOutLen;
     int portsOutSize;
 
     DesignPorts() : portsIn PORT_IN_INFO, portsOut PORT_OUT_INFO {
-        for (const auto & port : portsIn) {
+        std::vector<std::pair<std::string, int>> portsInVec = PORT_IN_INFO;
+        for (const auto & port : portsInVec) {
+            portsInIndex[port.first] = portsInName.size();
             portsInName.push_back(port.first);
             portsInLen.push_back(port.second);
         }
         portsInSize = portsInLen.size();
-        for (const auto & port : portsOut) {
+        std::vector<std::pair<std::string, int>> portsOutVec = PORT_OUT_INFO;
+        for (const auto & port : portsOutVec) {
+            portsOutIndex[port.first] = portsOutName.size();
             portsOutName.push_back(port.first);
             portsOutLen.push_back(port.second);
         }
@@ -44,6 +51,10 @@ public:
         return portsIn;
     }
 
+    int getPortInIndex(const std::string & portName) {
+        return portsInIndex[portName];
+    }
+
     int getPortsInLen(const std::string & portName) {
         return portsIn[portName];
     }
@@ -56,8 +67,16 @@ public:
         return portsInLen;
     }
 
+    int getPortsInLen(int index) {
+        return portsInLen[index];
+    }
+
     const std::unordered_map<std::string, int> & getPortsOut() {
         return portsOut;
+    }
+
+    int getPortOutIndex(const std::string & portName) {
+        return portsOutIndex[portName];
     }
 
     int getPortsOutLen(const std::string & portName) {
@@ -70,6 +89,10 @@ public:
 
     const std::vector<int> & getPortsOutLen() {
         return portsOutLen;
+    }
+
+    int getPortsOutLen(int index) {
+        return portsOutLen[index];
     }
 
     int getPortsInSize() {
