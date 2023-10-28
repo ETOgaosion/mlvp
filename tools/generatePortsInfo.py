@@ -18,8 +18,8 @@ def generate_ports_info(module, file):
     # Read file and find lines matching the regex pattern
     ports_in_name = []
     ports_out_name = []
-    ports_in_len = []
-    ports_out_len = []
+    ports_in_scale = []
+    ports_out_scale = []
     
     skip_ports = ['clk', 'clock'];
     with open(path, 'r') as f:
@@ -35,18 +35,18 @@ def generate_ports_info(module, file):
                     if int(match[2]) > 63:
                         raise ValueError('Not support port width larger than 64, please split this port')
                     ports_in_name.append(match[1])
-                    ports_in_len.append(int(match[2])+1)
+                    ports_in_scale.append(2 ** (int(match[2])+1) - 1)
             if matches_out:
                 for match in matches_out:
                     if int(match[2]) > 63:
                         raise ValueError('Not support port width larger than 64, please split this port')
                     ports_out_name.append(match[1])
-                    ports_out_len.append(int(match[2])+1)
+                    ports_out_scale.append(2 ** (int(match[2])+1) - 1)
         
     print(ports_in_name)
-    print(ports_in_len)
+    print(ports_in_scale)
     print(ports_out_name)
-    print(ports_out_len)
+    print(ports_out_scale)
 
     # include/Database/designPortsGen.h
     design_ports_path = 'include/Database/designPortsGen.h'
@@ -56,13 +56,13 @@ def generate_ports_info(module, file):
     with open(design_ports_path, 'w') as f:
         f.write('#define PORT_IN_INFO {')
         for i in range(len(ports_in_name)):
-            f.write('{"' + ports_in_name[i] + '",' + str(ports_in_len[i]) + '}')
+            f.write('{"' + ports_in_name[i] + '",' + str(ports_in_scale[i]) + '}')
             if i != len(ports_in_name) - 1:
                 f.write(',')
         f.write('}\n')
         f.write('#define PORT_OUT_INFO {')
         for i in range(len(ports_out_name)):
-            f.write('{"' + ports_out_name[i] + '",' + str(ports_out_len[i]) + '}')
+            f.write('{"' + ports_out_name[i] + '",' + str(ports_out_scale[i]) + '}')
             if i != len(ports_out_name) - 1:
                 f.write(',')
         f.write('}')

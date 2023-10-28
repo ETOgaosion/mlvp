@@ -13,7 +13,7 @@ using namespace MVM::Library;
 using namespace MVM::Database;
 
 bool GeneratorMiddleContents::checkTestValidity(TestPoint test) {
-    if (test.size() != MVM::Database::DesignPorts::getInstance().getPortsInSize()) {
+    if (test.size() != DesignPorts::getInstance().getPortsInSize()) {
         switch (bugHandleDegree)
         {
         case MVM::Library::Degree::SKIP:
@@ -26,7 +26,7 @@ bool GeneratorMiddleContents::checkTestValidity(TestPoint test) {
         case MVM::Library::Degree::LOW:
         case MVM::Library::Degree::MEDIUM:
         default:
-            std::cout << "[ERROR] TestGenerator > test size not align with port info : Port width is " << MVM::Database::DesignPorts::getInstance().getPortsInSize() << " but test size is " << test.size() << std::endl;
+            std::cout << "[ERROR] TestGenerator > test size not align with port info : Port width is " << DesignPorts::getInstance().getPortsInSize() << " but test size is " << test.size() << std::endl;
             for (auto test_i : test) {
                 std::cout << test_i << " ";
             }
@@ -107,9 +107,9 @@ bool GeneratorMiddleContents::addTestPoint(TestPoint test) {
 
 bool RandomGeneratorModel::addTestPoint() {
     TestPoint test;
-    const auto & portsInLen = MVM::Database::DesignPorts::getInstance().getPortsInLen();
-    for (int i = 0; i < MVM::Database::DesignPorts::getInstance().getPortsInSize(); i++) {
-        uniform_int_distribution<unsigned long long> dist(0, portsInLen[i] - 1);
+    const auto & portsInScale = DesignPorts::getInstance().getPortsInScale();
+    for (int i = 0; i < DesignPorts::getInstance().getPortsInSize(); i++) {
+        uniform_int_distribution<unsigned long long> dist(0, portsInScale[i] - 1);
         test.push_back(dist(rng));
     }
     return middleContents->addTestPoint(test);
@@ -153,20 +153,7 @@ bool PortSpecGeneratoorModel::checkAllPortSpec() {
     if (portTestSpecs.size() != DesignPorts::getInstance().getPortsInSize()) {
         throw std::runtime_error("PortSpecGeneratoorModel > missing port, PortSpec is not valid");
     }
-    int prevIndex = portTestSpecs.begin()->second.back().endIndex;
-    for (auto portSpec : portTestSpecs) {
-        maxIndex = portSpec.second.back().endIndex;
-        if (maxIndex != prevIndex) {
-            throw std::runtime_error("PortSpecGeneratoorModel > serial length not consistent, PortSpec is not valid");
-        }
-        prevIndex = maxIndex;
-        for (int i = 0; i < portSpec.second.size() - 1; i++) {
-            if (portSpec.second[i].endIndex != portSpec.second[i + 1].startIndex - 1) {
-                throw std::runtime_error("PortSpecGeneratoorModel > not continuous portspec, PortSpec is not valid");
-                return false;
-            }
-        }
-    }
+    maxIndex = portTestSpecs.begin()->second.back().endIndex;
     return true;
 }
 
@@ -233,7 +220,7 @@ void PortSpecGeneratoorModel::generateSerialTest(bool autoclear) {
                 break;
             case GeneratorType::RANDOM_GENERATOR:
             {
-                uniform_int_distribution<unsigned long long> dist(0, DesignPorts::getInstance().getPortsInLen(spec.portName) - 1);
+                uniform_int_distribution<unsigned long long> dist(0, DesignPorts::getInstance().getPortsInScale(spec.portName) - 1);
                 for (int i = spec.startIndex; i <= spec.endIndex; i++) {
                     serialTest[i][DesignPorts::getInstance().getPortInIndex(spec.portName)] = dist(rng);
                 }
