@@ -1,0 +1,3 @@
+[submodule "doc/mvm-doc"]
+	path = doc/mvm-doc
+	url = https://gitee.com/beifengzhishen955/mvm-doc.git
