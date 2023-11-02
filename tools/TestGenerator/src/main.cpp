@@ -9,14 +9,14 @@ int main() {
     std::shared_ptr<GeneratorMiddleContents> middleContents = std::make_shared<GeneratorMiddleContents>();
     middleContents->generateTestSetPrepare();
 
-    PortSpecGeneratoorModel portSpecGeneratoorModel(middleContents);
+    PortSpecGeneratorModel portSpecGeneratorModel(middleContents);
     for (unsigned long long i = 1; i < 5; i++) {
-        portSpecGeneratoorModel.addPortTestSpec("reset", 0, 1, GeneratorType::DIRECT_INPUT, {1});
-        portSpecGeneratoorModel.addPortTestSpec("addr" , 0, 5, GeneratorType::DIRECT_INPUT, {i});
-        portSpecGeneratoorModel.addPortTestSpec("wr_en", 2, 3, GeneratorType::DIRECT_INPUT, {1});
-        portSpecGeneratoorModel.addPortTestSpec("rd_en", 4, 5, GeneratorType::DIRECT_INPUT, {1});
-        portSpecGeneratoorModel.addPortTestSpec("wdata", 0, 5, GeneratorType::DIRECT_INPUT, {i});
-        portSpecGeneratoorModel.generateSerialTest(true);
+        portSpecGeneratorModel.addPortTestSpec("reset", 0, 1, GeneratorType::DIRECT_INPUT, {1});
+        portSpecGeneratorModel.addPortTestSpec("addr" , 0, 5, GeneratorType::DIRECT_INPUT, {i});
+        portSpecGeneratorModel.addPortTestSpec("wr_en", 2, 3, GeneratorType::DIRECT_INPUT, {1});
+        portSpecGeneratorModel.addPortTestSpec("rd_en", 4, 5, GeneratorType::DIRECT_INPUT, {1});
+        portSpecGeneratorModel.addPortTestSpec("wdata", 0, 5, GeneratorType::DIRECT_INPUT, {i});
+        portSpecGeneratorModel.generateSerialTest(true);
     }
 
     middleContents->generateMiddleContents();

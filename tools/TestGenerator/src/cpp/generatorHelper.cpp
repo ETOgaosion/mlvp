@@ -132,32 +132,32 @@ bool RandomGeneratorModel::addSerialTestsSet(std::vector<int> serialTestSize) {
     return true;
 }
 
-bool PortSpecGeneratoorModel::checkPortSpec(PortTestSpec portTestSpec) {
+bool PortSpecGeneratorModel::checkPortSpec(PortTestSpec portTestSpec) {
     return checkPortSpec(portTestSpec.portName, portTestSpec.startIndex, portTestSpec.endIndex, portTestSpec.generatorType);
 }
 
-bool PortSpecGeneratoorModel::checkPortSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType) {
+bool PortSpecGeneratorModel::checkPortSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType) {
     if (portTestSpecs.contains(portName) && !portTestSpecs[portName].empty() && portTestSpecs[portName].back().endIndex >= startIndex) {
         if (bugHandleDegree == Degree::HIGH) {
-            throw std::runtime_error("PortSpecGeneratoorModel > PortSpec is not valid");
+            throw std::runtime_error("PortSpecGeneratorModel > PortSpec is not valid");
         }
         else {
-            cout << "[Error] PortSpecGeneratoorModel > PortSpec is not valid" << endl;
+            cout << "[Error] PortSpecGeneratorModel > PortSpec is not valid" << endl;
         }
         return false;
     }
     return true;
 }
 
-bool PortSpecGeneratoorModel::checkAllPortSpec() {
+bool PortSpecGeneratorModel::checkAllPortSpec() {
     if (portTestSpecs.size() != DesignPorts::getInstance().getPortsInSize()) {
-        throw std::runtime_error("PortSpecGeneratoorModel > missing port, PortSpec is not valid");
+        throw std::runtime_error("PortSpecGeneratorModel > missing port, PortSpec is not valid");
     }
     maxIndex = portTestSpecs.begin()->second.back().endIndex;
     return true;
 }
 
-bool PortSpecGeneratoorModel::addPortTestSpec(PortTestSpec portTestSpec) {
+bool PortSpecGeneratorModel::addPortTestSpec(PortTestSpec portTestSpec) {
     bool res = true;
     if (portTestSpecs.contains(portTestSpec.portName)) {
         res &= checkPortSpec(portTestSpec);
@@ -169,7 +169,7 @@ bool PortSpecGeneratoorModel::addPortTestSpec(PortTestSpec portTestSpec) {
     return res;
 }
 
-bool PortSpecGeneratoorModel::addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType) {
+bool PortSpecGeneratorModel::addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType) {
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
@@ -181,7 +181,7 @@ bool PortSpecGeneratoorModel::addPortTestSpec(std::string portName, int startInd
     return res;
 }
 
-bool PortSpecGeneratoorModel::addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, TestPoint value) {
+bool PortSpecGeneratorModel::addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, vector<unsigned long long> value) {
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
@@ -195,7 +195,7 @@ bool PortSpecGeneratoorModel::addPortTestSpec(std::string portName, int startInd
     return res;
 }
 
-void PortSpecGeneratoorModel::generateSerialTest(bool autoclear) {
+void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
     checkAllPortSpec();
     SerialTest serialTest(maxIndex + 1, TestPoint(DesignPorts::getInstance().getPortsInSize(), 0));
     for (auto & portSpec : portTestSpecs) {
@@ -215,7 +215,7 @@ void PortSpecGeneratoorModel::generateSerialTest(bool autoclear) {
                     }
                 }
                 else {
-                    throw std::runtime_error("PortSpecGeneratoorModel > type not support, PortSpec is not valid");
+                    throw std::runtime_error("PortSpecGeneratorModel > type not support, PortSpec is not valid");
                 }
                 break;
             case GeneratorType::RANDOM_GENERATOR:

@@ -70,6 +70,9 @@ public:
         generatorType = GeneratorType::DIRECT_INPUT;
     }
     ~DirectInputModel() = default;
+
+    bool addSerialTest() override { MVM::Library::FunctionNotImplementError("DirectInputModel::addSerialTest"); return false; }
+    bool addTestPoint() override { MVM::Library::FunctionNotImplementError("DirectInputModel::addTestPoint"); return false; }
 };
 
 class RandomGeneratorModel : public GeneratorModel {
@@ -99,23 +102,23 @@ struct PortTestSpec {
     int startIndex;
     int endIndex;
     GeneratorType generatorType;
-    MVM::Sequencer::TestPoint value;
+    std::vector<unsigned long long> value;
 
     PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType) : portName(inPortName), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType) {}
     ~PortTestSpec() = default;
 };
 
-class PortSpecGeneratoorModel : public GeneratorModel {
+class PortSpecGeneratorModel : public GeneratorModel {
 private:
     std::unordered_map<std::string, std::vector<PortTestSpec>> portTestSpecs;
     int maxIndex;
     std::mt19937 rng;
 
 public:
-    PortSpecGeneratoorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), maxIndex(0), rng((std::random_device())()) {
+    PortSpecGeneratorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), maxIndex(0), rng((std::random_device())()) {
         generatorType = GeneratorType::PORT_SPEC_GENERATOR;
     }
-    ~PortSpecGeneratoorModel() = default;
+    ~PortSpecGeneratorModel() = default;
 
     bool checkPortSpec(PortTestSpec portTestSpec);
     bool checkPortSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType);
@@ -123,14 +126,14 @@ public:
 
     bool addPortTestSpec(PortTestSpec portTestSpec);
     bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType);
-    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, MVM::Sequencer::TestPoint value);
+    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, std::vector<unsigned long long> value);
 
     void generateSerialTest(bool autoclear = true);
     void clearSerialTest() { portTestSpecs.clear(); maxIndex = 0; }
 
-    bool addSerialTest(MVM::Sequencer::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratoorModel::addSerialTest"); return false; }
-    bool addSerialTest() override { MVM::Library::FunctionNotImplementError("PortSpecGeneratoorModel::addSerialTest"); return false; }
-    bool addTestPoint(MVM::Sequencer::TestPoint test) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratoorModel::addTestPoint"); return false; }
+    bool addSerialTest(MVM::Sequencer::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addSerialTest"); return false; }
+    bool addSerialTest() override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addSerialTest"); return false; }
+    bool addTestPoint(MVM::Sequencer::TestPoint test) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addTestPoint"); return false; }
 
 };
 
