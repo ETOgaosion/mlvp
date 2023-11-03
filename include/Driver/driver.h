@@ -6,12 +6,12 @@
 #include <future>
 
 #include "Database/designPorts.h"
-#include "MCVPack/BareDut/Memory/memoryDriver.h"
-#include "RefPack/Memory/memoryDriver.h"
+#include "Driver/dutUnitDriver.h"
+#include "Driver/refUnitDriver.h"
 #include "Driver/driverModel.h"
 #include "Transaction/transaction.h"
-#include "MCVPack/dutDriver.h"
-#include "RefPack/refDriver.h"
+#include "Driver/dutDriver.h"
+#include "Driver/refDriver.h"
 
 namespace MVM {
 namespace Driver {
@@ -22,9 +22,8 @@ private:
     std::unique_ptr<DriverModel> refDriver;
     std::shared_ptr<MVM::Transaction::Transaction> transaction;
 
-public:
-    
-    Driver(int inDriverID, std::string inLogPath, std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : transaction(inTransaction), dutDriver(std::make_unique<MVM::MCVPack::DutDriver<TDut>>(inDriverID, inLogPath, inTransaction)), refDriver(std::make_unique<MVM::RefPack::RefDriver<TRef>>(inTransaction)) {}
+public:    
+    Driver(int inDriverID, std::string inLogPath, std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : transaction(inTransaction), dutDriver(std::make_unique<MVM::Driver::DutDriver<TDut>>(inDriverID, inLogPath, inTransaction)), refDriver(std::make_unique<MVM::Driver::RefDriver<TRef>>(inTransaction)) {}
 
     int driving(std::shared_ptr<std::string> errorMsgRaw) {
         bool dutResult, refResult;

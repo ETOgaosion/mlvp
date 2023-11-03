@@ -9,7 +9,6 @@
 using namespace std;
 using namespace MVM::Type;
 using namespace MVM::TestGenerator;
-using namespace MVM::Sequencer;
 using namespace MVM::Library;
 using namespace MVM::Database;
 
@@ -42,18 +41,18 @@ bool GeneratedUserTest::checkTestValidity(TestPoint test) {
 bool GeneratedUserTest::addSerialTest(SerialTest testSet) {
     bool result = true;
     testSet.erase(std::remove_if(testSet.begin(), testSet.end(), [](TestPoint test) {return !GeneratedUserTest::checkTestValidity(test); }), testSet.end());
-    userTest.push_back(testSet);
+    userTest->push_back(testSet);
     return result;
 }
 
 bool GeneratedUserTest::addSerialTest() {
-    userTest.push_back(SerialTest());
+    userTest->push_back(SerialTest());
     return true;
 }
 
 bool GeneratedUserTest::addTestPoint(TestPoint test) {
     bool res = GeneratedUserTest::checkTestValidity(test);
-    userTest.back().push_back(test);
+    userTest->back().push_back(test);
     return res;
 }
 

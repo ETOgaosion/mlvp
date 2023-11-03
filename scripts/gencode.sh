@@ -10,7 +10,7 @@ if [ "$#" -lt 4 ]; then
 fi
 
 debug="true"
-design_base="src/MCVPack/BareDut/"
+design_base="design"
 include_base="include/MCVPack/BareDut/"
 
 while [[ $# -gt 0 ]]

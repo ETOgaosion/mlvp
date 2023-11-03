@@ -15,13 +15,11 @@ namespace TestGenerator {
 
 class GeneratedUserTest {
 private:
-    MVM::Type::SerialTestsSet userTest;
+    std::shared_ptr<MVM::Type::SerialTestsSet> userTest;
     std::mutex userTestMutex;
 
 public:
-    GeneratedUserTest() {
-        userTest.clear();
-    }
+    GeneratedUserTest() : userTest(std::make_unique<MVM::Type::SerialTestsSet>()) {}
     ~GeneratedUserTest() = default;
 
     static bool checkTestValidity(MVM::Type::TestPoint test);
@@ -30,12 +28,12 @@ public:
     bool addSerialTest();
     bool addTestPoint(MVM::Type::TestPoint test);
 
-    const MVM::Type::SerialTestsSet & getTests() {
+    std::shared_ptr<MVM::Type::SerialTestsSet> & getTests() {
         return userTest;
     }
 
-    int getTestSize() { return userTest.size(); }
-    MVM::Type::TestPoint getTestPoint(int serialTestIndex, int testPointIndex) { return userTest[serialTestIndex][testPointIndex]; }
+    int getTestSize() { return userTest->size(); }
+    MVM::Type::TestPoint getTestPoint(int serialTestIndex, int testPointIndex) { return (*userTest)[serialTestIndex][testPointIndex]; }
 };
 
 enum class GeneratorType {

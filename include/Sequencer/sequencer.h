@@ -2,27 +2,27 @@
 
 #include <memory>
 
-#include "Sequencer/testcases.h"
 #include "Library/error.h"
+#include "Library/types.h"
 
 namespace MVM {
 namespace Sequencer {
 class Sequencer
 {
 private:
-    std::shared_ptr<TestCaseSet> testCases;
+    std::shared_ptr<MVM::Type::SerialTestsSet> testCases;
 
 public:
     Sequencer() = delete;
 
-    Sequencer(std::shared_ptr<TestCaseSet> inTestCases) : testCases(inTestCases) {}
+    Sequencer(std::shared_ptr<MVM::Type::SerialTestsSet> inTestCases) : testCases(inTestCases) {}
     
     int getTestSize() {
-        return testCases->getTestsSize();
+        return testCases->size();
     }
 
     const MVM::Type::SerialTestsSet & getTests() {
-        return testCases->getTests();
+        return *testCases;
     }
 };
 

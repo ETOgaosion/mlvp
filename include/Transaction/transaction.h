@@ -5,7 +5,6 @@
 #include <mutex>
 
 #include "Sequencer/sequencer.h"
-#include "Sequencer/testcases.h"
 
 namespace MVM {
 namespace Transaction {

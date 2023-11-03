@@ -7,7 +7,7 @@
 #include "Transaction/transaction.h"
 
 namespace MVM {
-namespace RefPack {
+namespace Driver {
 template <class T>
 class RefDriver : public MVM::Driver::DriverModel {
 private:

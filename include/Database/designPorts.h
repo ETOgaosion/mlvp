@@ -5,7 +5,6 @@
 #include <string>
 
 #include "Database/designPortsGen.h"
-#include "Sequencer/testcases.h"
 
 namespace MVM {
 namespace Database {

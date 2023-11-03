@@ -14,8 +14,6 @@ private:
     TransactionDatabase() = default;
 
 public:
-    
-
     TransactionDatabase(TransactionDatabase const &) = delete;
     void operator=(TransactionDatabase const &) = delete;
 

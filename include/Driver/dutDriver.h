@@ -7,7 +7,7 @@
 #include "Transaction/transaction.h"
 
 namespace MVM {
-namespace MCVPack {
+namespace Driver {
 template <class T>
 class DutDriver : public MVM::Driver::DriverModel {
 private:
@@ -25,7 +25,7 @@ public:
 };
 
     
-} // namespace MCVPack
+} // namespace Driver
 
 
 } // namespace MVM
