@@ -2,6 +2,7 @@
 
 #include <string>
 #include <memory>
+#include <filesystem>
 #include <verilated.h>
 #include <verilated_vcd_c.h>
 
@@ -22,8 +23,7 @@ public:
     virtual ~DutUnitDriver() = default;
 
     DutUnitDriver(int inDriverID, std::string inLogPath, std::shared_ptr<MVM::Transaction::Transaction> inTransaction) : MVM::Driver::DriverModel(inDriverID, inLogPath + "/Driver" + std::to_string(inDriverID), inTransaction), contextp(std::make_unique<VerilatedContext>()), tfp(std::make_unique<VerilatedVcdC>()), executeCycles(0), testPtr(0) {
-        Verilated::mkdir(inLogPath.c_str());
-        Verilated::mkdir(logPath.c_str());
+        std::filesystem::create_directories(logPath);
         Verilated::traceEverOn(true);
         contextp->traceEverOn(true);
     }
