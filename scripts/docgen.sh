@@ -1,1 +1,1 @@
-doxygen && 
+doxygen && python3 -m mkdocs build --clean --site-dir build/html --config-file mkdocs.yml
