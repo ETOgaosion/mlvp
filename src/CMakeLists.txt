@@ -1,6 +1,7 @@
 add_subdirectory(Config)
 add_subdirectory(Library)
 add_subdirectory(Database)
+add_subdirectory(TestGenerator)
 add_subdirectory(Sequencer)
 add_subdirectory(Transaction)
 add_subdirectory(MCVPack)
@@ -19,6 +20,7 @@ $<TARGET_OBJECTS:RefPack>
 $<TARGET_OBJECTS:Reporter>
 $<TARGET_OBJECTS:Spreader>
 $<TARGET_OBJECTS:Sequencer>
+$<TARGET_OBJECTS:TestGenerator>
 $<TARGET_OBJECTS:Transaction>
 $<TARGET_OBJECTS:MemoryDut>
 $<TARGET_OBJECTS:MemoryRef>

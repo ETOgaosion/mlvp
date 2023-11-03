@@ -17,8 +17,6 @@ public:
     ~UserTest() = default;
     UserTest(std::shared_ptr<TestCaseSet> inUserTest) : userTest(inUserTest) {}
 
-    void generateUserTest(std::string testFilePath = "data/userTest.json");
-
     std::shared_ptr<TestCaseSet> getUserTest() {
         return userTest;
     }

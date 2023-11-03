@@ -1,4 +1,4 @@
-#include "generatorHelper.h"
+#include "TestGenerator/generatorHelper.h"
 
 #include <iostream>
 #include <fstream>
@@ -7,12 +7,13 @@
 #include "Database/designPorts.h"
 
 using namespace std;
+using namespace MVM::Type;
 using namespace MVM::TestGenerator;
 using namespace MVM::Sequencer;
 using namespace MVM::Library;
 using namespace MVM::Database;
 
-bool GeneratorMiddleContents::checkTestValidity(TestPoint test) {
+bool GeneratedUserTest::checkTestValidity(TestPoint test) {
     if (test.size() != DesignPorts::getInstance().getPortsInSize()) {
         switch (bugHandleDegree)
         {
@@ -38,69 +39,20 @@ bool GeneratorMiddleContents::checkTestValidity(TestPoint test) {
     return true;
 }
 
-bool GeneratorMiddleContents::generateTestSetPrepare() {
-    if (std::filesystem::exists(testSetFilePath)) {
-        std::filesystem::rename(testSetFilePath, testSetFilePath + ".bak");
-    }
-    ofstream testSetFile(testSetFilePath, ofstream::trunc);
-    if (!testSetFile.is_open()) {
-        throw std::runtime_error("TestGenerator > Cannot open testSetFile");
-        return false;
-    }
-    testSetFile << "[" << endl;
-    return true;
-}
-
-void GeneratorMiddleContents::generateMiddleContents() {
-    ofstream testSetFile(testSetFilePath, ofstream::app);
-    if (!testSetFile.is_open()) {
-        throw std::runtime_error("TestGenerator > Cannot open testSetFile");
-    }
-    for (auto testSet_it = userTest.begin(); testSet_it != userTest.end(); testSet_it++) {
-        testSetFile << "[";
-        for (auto testPoint_it = testSet_it->begin(); testPoint_it != testSet_it->end(); testPoint_it++) {
-            testSetFile << "[";
-            for (auto test_it = testPoint_it->begin(); test_it != testPoint_it->end(); test_it++) {
-                testSetFile << *test_it;
-                if (test_it != testPoint_it->end() - 1) {
-                    testSetFile << ",";
-                }
-            }
-            testSetFile << "]";
-            if (testPoint_it != testSet_it->end() - 1) {
-                testSetFile << ",";
-            }
-        }
-        testSetFile << "]";
-        if (testSet_it != userTest.end() - 1) {
-            testSetFile << ",";
-        }
-        testSetFile << endl;
-    }
-}
-
-void GeneratorMiddleContents::generateTestSetFinish() {
-    ofstream testSetFile(testSetFilePath, ofstream::app);
-    if (!testSetFile.is_open()) {
-        throw std::runtime_error("TestGenerator > Cannot open testSetFile");
-    }
-    testSetFile << "]";
-}
-
-bool GeneratorMiddleContents::addSerialTest(SerialTest testSet) {
+bool GeneratedUserTest::addSerialTest(SerialTest testSet) {
     bool result = true;
-    testSet.erase(std::remove_if(testSet.begin(), testSet.end(), [](TestPoint test) {return !GeneratorMiddleContents::checkTestValidity(test); }), testSet.end());
+    testSet.erase(std::remove_if(testSet.begin(), testSet.end(), [](TestPoint test) {return !GeneratedUserTest::checkTestValidity(test); }), testSet.end());
     userTest.push_back(testSet);
     return result;
 }
 
-bool GeneratorMiddleContents::addSerialTest() {
+bool GeneratedUserTest::addSerialTest() {
     userTest.push_back(SerialTest());
     return true;
 }
 
-bool GeneratorMiddleContents::addTestPoint(TestPoint test) {
-    bool res = GeneratorMiddleContents::checkTestValidity(test);
+bool GeneratedUserTest::addTestPoint(TestPoint test) {
+    bool res = GeneratedUserTest::checkTestValidity(test);
     userTest.back().push_back(test);
     return res;
 }

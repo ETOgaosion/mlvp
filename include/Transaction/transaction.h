@@ -37,9 +37,9 @@ struct TransactionItem
 {
     unsigned long long cycles;
     unsigned long long maxCycles;
-    MVM::Sequencer::SerialTest inSignal;
-    MVM::Sequencer::SerialTest dutOutSignal;
-    MVM::Sequencer::SerialTest refOutSignal;
+    MVM::Type::SerialTest inSignal;
+    MVM::Type::SerialTest dutOutSignal;
+    MVM::Type::SerialTest refOutSignal;
 };
 
 class Transaction
@@ -55,14 +55,14 @@ public:
 
     Transaction(Transaction const &) = delete;
 
-    Transaction(unsigned long long maxCycles, MVM::Sequencer::SerialTest test);
+    Transaction(unsigned long long maxCycles, MVM::Type::SerialTest test);
 
-    void setDutOutSignal(int index, MVM::Sequencer::TestPoint dutOutSignal) {
+    void setDutOutSignal(int index, MVM::Type::TestPoint dutOutSignal) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.dutOutSignal[index] = dutOutSignal;
     }
 
-    void setRefOutSignal(int index, MVM::Sequencer::TestPoint refOutSignal) {
+    void setRefOutSignal(int index, MVM::Type::TestPoint refOutSignal) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.refOutSignal[index] = refOutSignal;
     }
@@ -76,15 +76,15 @@ public:
         return transactionID;
     }
 
-    const MVM::Sequencer::SerialTest & getInSignal() {
+    const MVM::Type::SerialTest & getInSignal() {
         return transactionItems.inSignal;
     }
 
-    const MVM::Sequencer::SerialTest & getDutOutSignal() {
+    const MVM::Type::SerialTest & getDutOutSignal() {
         return transactionItems.dutOutSignal;
     }
 
-    const MVM::Sequencer::SerialTest & getRefOutSignal() {
+    const MVM::Type::SerialTest & getRefOutSignal() {
         return transactionItems.refOutSignal;
     }
 

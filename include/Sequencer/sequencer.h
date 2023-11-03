@@ -14,7 +14,6 @@ private:
 
 public:
     Sequencer() = delete;
-    
 
     Sequencer(std::shared_ptr<TestCaseSet> inTestCases) : testCases(inTestCases) {}
     
@@ -22,7 +21,7 @@ public:
         return testCases->getTestsSize();
     }
 
-    const SerialTestsSet & getTests() {
+    const MVM::Type::SerialTestsSet & getTests() {
         return testCases->getTests();
     }
 };

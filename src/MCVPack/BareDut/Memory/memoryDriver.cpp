@@ -2,8 +2,6 @@
 
 #include <iostream>
 
-#include "MCVPack/BareDut/Memory/Vmemory.h"
-
 using namespace std;
 using namespace MVM::MCVPack;
 

@@ -3,73 +3,32 @@
 #include <vector>
 #include <memory>
 
+#include "TestGenerator/generatorHelper.h"
+#include "Library/types.h"
+
 namespace MVM {
 namespace Sequencer {
-typedef std::vector<unsigned long long> TestPoint;
-
-typedef std::vector<TestPoint> SerialTest;
-
-typedef std::vector<SerialTest> SerialTestsSet;
-
 class TestCaseSet
 {
 private:
-    SerialTestsSet tests;
+    std::shared_ptr<MVM::TestGenerator::GeneratedUserTest> tests;
     int testsSize;
 
 public:
-    TestCaseSet() = default;
+    TestCaseSet() = delete;
     
 
     /* only use input signals */
-    TestCaseSet(SerialTestsSet inTests) {
-        tests = inTests;
-        testsSize = tests.size();
+    TestCaseSet(std::shared_ptr<MVM::TestGenerator::GeneratedUserTest> inTests) : tests(inTests) {
+        testsSize = tests->getTestSize();
     }
 
-    const SerialTestsSet & getTests() {
-        return tests;
+    const MVM::Type::SerialTestsSet & getTests() {
+        return tests->getTests();
     }
 
     int getTestsSize() {
         return testsSize;
-    }
-
-    bool setTest(int index, SerialTest test) {
-        if (index >= testsSize)
-            return false;
-        tests[index] = test;
-        return true;
-    }
-
-    bool removeTest(int index) {
-        if (index >= testsSize)
-            return false;
-        tests.erase(tests.begin() + index);
-        testsSize--;
-        return true;
-    }
-
-    void addSerialTest(SerialTest test) {
-        tests.push_back(test);
-        testsSize++;
-    }
-
-    void addSerialTest() {
-        tests.push_back({});
-        testsSize++;
-    }
-
-    void addTestPoint(TestPoint test) {
-        tests.back().push_back(test);
-    }
-
-    void addTestPoint() {
-        tests.back().push_back({});
-    }
-
-    void addTest(unsigned long long test) {
-        tests.back().back().push_back(test);
     }
 
 };

@@ -6,7 +6,7 @@ using namespace MVM::Transaction;
 using namespace MVM::Database;
 using namespace MVM::Sequencer;
 
-Transaction::Transaction(unsigned long long maxCycles, MVM::Sequencer::SerialTest test) {
+Transaction::Transaction(unsigned long long maxCycles, MVM::Type::SerialTest test) {
     transactionID = TransactionCounter::getInstance().getTransactionID();
     transactionItems.cycles = 0;
     transactionItems.maxCycles = maxCycles;

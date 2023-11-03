@@ -7,34 +7,35 @@
 #include <random>
 #include <unordered_map>
 
-#include "Sequencer/testcases.h"
 #include "Library/error.h"
+#include "Library/types.h"
 
 namespace MVM {
 namespace TestGenerator {
 
-static const std::string testSetFilePath = "data/usertest.json";
-
-class GeneratorMiddleContents {
+class GeneratedUserTest {
 private:
-    MVM::Sequencer::SerialTestsSet userTest;
+    MVM::Type::SerialTestsSet userTest;
     std::mutex userTestMutex;
 
 public:
-    GeneratorMiddleContents() {
+    GeneratedUserTest() {
         userTest.clear();
     }
-    ~GeneratorMiddleContents() = default;
+    ~GeneratedUserTest() = default;
 
-    static bool checkTestValidity(MVM::Sequencer::TestPoint test);
+    static bool checkTestValidity(MVM::Type::TestPoint test);
 
-    bool generateTestSetPrepare();
-    void generateMiddleContents();
-    void generateTestSetFinish();
-
-    bool addSerialTest(MVM::Sequencer::SerialTest testSet);
+    bool addSerialTest(MVM::Type::SerialTest testSet);
     bool addSerialTest();
-    bool addTestPoint(MVM::Sequencer::TestPoint test);
+    bool addTestPoint(MVM::Type::TestPoint test);
+
+    const MVM::Type::SerialTestsSet & getTests() {
+        return userTest;
+    }
+
+    int getTestSize() { return userTest.size(); }
+    MVM::Type::TestPoint getTestPoint(int serialTestIndex, int testPointIndex) { return userTest[serialTestIndex][testPointIndex]; }
 };
 
 enum class GeneratorType {
@@ -46,18 +47,18 @@ enum class GeneratorType {
 
 class GeneratorModel {
 protected:
-    std::shared_ptr<GeneratorMiddleContents> middleContents;
+    std::shared_ptr<GeneratedUserTest> middleContents;
     GeneratorType generatorType;
     
 
 public:
-    GeneratorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : middleContents(middleContents), generatorType(GeneratorType::BASE) {}
+    GeneratorModel(std::shared_ptr<GeneratedUserTest> middleContents) : middleContents(middleContents), generatorType(GeneratorType::BASE) {}
     virtual ~GeneratorModel() = default;
 
-    virtual bool addSerialTest(MVM::Sequencer::SerialTest testSet) { return middleContents->addSerialTest(testSet); }
+    virtual bool addSerialTest(MVM::Type::SerialTest testSet) { return middleContents->addSerialTest(testSet); }
     virtual bool addSerialTest() { return middleContents->addSerialTest(); }
 
-    virtual bool addTestPoint(MVM::Sequencer::TestPoint test) { return middleContents->addTestPoint(test); }
+    virtual bool addTestPoint(MVM::Type::TestPoint test) { return middleContents->addTestPoint(test); }
     virtual bool addTestPoint() { MVM::Library::FunctionNotImplementError("GeneratorModel::addTestPoint"); return false; }
 
 };
@@ -66,7 +67,7 @@ class DirectInputModel : public GeneratorModel {
 private:
 
 public:
-    DirectInputModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents) {
+    DirectInputModel(std::shared_ptr<GeneratedUserTest> middleContents) : GeneratorModel(middleContents) {
         generatorType = GeneratorType::DIRECT_INPUT;
     }
     ~DirectInputModel() = default;
@@ -81,14 +82,14 @@ private:
     std::mt19937 rng;
 
 public:
-    RandomGeneratorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), rng((std::random_device())()) {
+    RandomGeneratorModel(std::shared_ptr<GeneratedUserTest> middleContents) : GeneratorModel(middleContents), rng((std::random_device())()) {
         generatorType = GeneratorType::RANDOM_GENERATOR;
     }
     ~RandomGeneratorModel() = default;
 
-    bool addTestPoint(MVM::Sequencer::TestPoint test) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addTestPoint"); return false; }
+    bool addTestPoint(MVM::Type::TestPoint test) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addTestPoint"); return false; }
 
-    bool addSerialTest(MVM::Sequencer::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addSerialTest"); return false; }
+    bool addSerialTest(MVM::Type::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addSerialTest"); return false; }
 
     bool addTestPoint() override;
     bool addSerialTest() override { MVM::Library::FunctionNotImplementError("RandomGeneratorModel::addSerialTest"); return false; }
@@ -115,7 +116,7 @@ private:
     std::mt19937 rng;
 
 public:
-    PortSpecGeneratorModel(std::shared_ptr<GeneratorMiddleContents> middleContents) : GeneratorModel(middleContents), maxIndex(0), rng((std::random_device())()) {
+    PortSpecGeneratorModel(std::shared_ptr<GeneratedUserTest> middleContents) : GeneratorModel(middleContents), maxIndex(0), rng((std::random_device())()) {
         generatorType = GeneratorType::PORT_SPEC_GENERATOR;
     }
     ~PortSpecGeneratorModel() = default;
@@ -131,9 +132,9 @@ public:
     void generateSerialTest(bool autoclear = true);
     void clearSerialTest() { portTestSpecs.clear(); maxIndex = 0; }
 
-    bool addSerialTest(MVM::Sequencer::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addSerialTest"); return false; }
+    bool addSerialTest(MVM::Type::SerialTest testSet) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addSerialTest"); return false; }
     bool addSerialTest() override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addSerialTest"); return false; }
-    bool addTestPoint(MVM::Sequencer::TestPoint test) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addTestPoint"); return false; }
+    bool addTestPoint(MVM::Type::TestPoint test) override { MVM::Library::FunctionNotImplementError("PortSpecGeneratorModel::addTestPoint"); return false; }
 
 };
 
