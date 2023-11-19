@@ -20,8 +20,7 @@ public:
 
     /* just execute one test */
     bool drivingStep() override {
-        if(!contextp->gotFinish() && executeCycles != transaction->getMaxCycles() && testPtr <= transaction->getTestsSize()) {
-            executeCycles++;
+        if(!contextp->gotFinish()) {
             contextp->timeInc(1);
 
             // assign input signals
@@ -72,17 +71,17 @@ private:
     unsigned short mem[4];
 
 public:
-    unsigned long long reset;
-    unsigned long long addr;
-    unsigned long long wr_en;
-    unsigned long long rd_en;
-    unsigned long long wdata;
-    unsigned long long rdata;
+    uint64 reset;
+    uint64 addr;
+    uint64 wr_en;
+    uint64 rd_en;
+    uint64 wdata;
+    uint64 rdata;
 
     RefMemory() {
         memset(mem, 0, sizeof(mem));   
     }
-    void eval() override {
+    void exec() override {
 		/* USER JOIN TODO */
         if (reset) {
             memset(mem, 0, sizeof(mem));
@@ -111,26 +110,19 @@ public:
 
     /* just execute one test */
     bool drivingStep() override {
-        if (testPtr <= transaction->getTestsSize()) {
-            executeCycles++;
-            time++;
-            
-            // assign input signals
-            top->reset = transaction->getInSignal()[testPtr][0];
-            top->addr = transaction->getInSignal()[testPtr][1];
-            top->wr_en = transaction->getInSignal()[testPtr][2];
-            top->rd_en = transaction->getInSignal()[testPtr][3];
-            top->wdata = transaction->getInSignal()[testPtr][4];
+        // assign input signals
+        top->reset = transaction->getInSignal()[testPtr][0];
+        top->addr = transaction->getInSignal()[testPtr][1];
+        top->wr_en = transaction->getInSignal()[testPtr][2];
+        top->rd_en = transaction->getInSignal()[testPtr][3];
+        top->wdata = transaction->getInSignal()[testPtr][4];
 
-            // evaluate model
-            top->eval();
+        // evaluate model
+        top->eval();
 
-            // assign output signals
-            transaction->setRefOutSignal(testPtr, {top->rdata});
-            testPtr++;
-            return true;
-        }
-        return false;
+        // assign output signals
+        transaction->setRefOutSignal(testPtr, {top->rdata});
+        return true;
     }
 };
 
@@ -139,7 +131,8 @@ int main() {
     shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
 
     PortSpecGeneratorModel portSpecGeneratorModel(userTests);
-    for (unsigned long long i = 1; i < 5; i++) {
+    for (uint64 i = 1; i < 5; i++) {
+        portSpecGeneratorModel.setSize(6);
         portSpecGeneratorModel.addPortTestSpec("reset", 0, 1, GeneratorType::DIRECT_INPUT, {1});
         portSpecGeneratorModel.addPortTestSpec("addr" , 0, 5, GeneratorType::DIRECT_INPUT, {i});
         portSpecGeneratorModel.addPortTestSpec("wr_en", 2, 3, GeneratorType::DIRECT_INPUT, {1});
@@ -150,8 +143,7 @@ int main() {
 
 
     // Execution
-    shared_ptr<Sequencer> sequencer = make_shared<Sequencer>(userTests->getTests());
-    TransactionLauncher::setupTransaction(1000, sequencer);
+    TransactionLauncher::setupTransaction(1000, userTests->getTests());
     Spreader<DutMemoryDriver, RefMemoryDriver, VerilatorReporter> spreader("log/memory", "report/memory");
     spreader.execute();
     return 0;
