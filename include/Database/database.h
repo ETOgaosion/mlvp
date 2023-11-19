@@ -9,7 +9,7 @@ namespace Database {
 class TransactionDatabase
 {
 private:
-    std::vector<std::shared_ptr<MVM::Transaction::Transaction>> transactions;
+    std::vector<std::vector<std::shared_ptr<MVM::Transaction::Transaction>>> transactions;
 
     TransactionDatabase() = default;
 
@@ -22,11 +22,11 @@ public:
         return instance;
     }
 
-    void addTransaction(std::shared_ptr<MVM::Transaction::Transaction> transaction) {
+    void addTransaction(std::vector<std::shared_ptr<MVM::Transaction::Transaction>> transaction) {
         transactions.push_back(transaction);
     }
 
-    std::shared_ptr<MVM::Transaction::Transaction> getTransaction(int index) {
+    std::vector<std::shared_ptr<MVM::Transaction::Transaction>> getTransaction(int index) {
         return transactions[index];
     }
 

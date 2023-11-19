@@ -10,26 +10,26 @@ namespace MVM {
 namespace Database {
 class DesignPorts {
 private:
-    std::unordered_map<std::string, unsigned long long> portsIn;
+    std::unordered_map<std::string, MVM::Type::uint64> portsIn;
     std::unordered_map<std::string, int> portsInIndex;
     std::vector<std::string> portsInName;
-    std::vector<unsigned long long> portsInScale;
+    std::vector<MVM::Type::uint64> portsInScale;
     int portsInSize;
-    std::unordered_map<std::string, unsigned long long> portsOut;
+    std::unordered_map<std::string, MVM::Type::uint64> portsOut;
     std::unordered_map<std::string, int> portsOutIndex;
     std::vector<std::string> portsOutName;
-    std::vector<unsigned long long> portsOutScale;
+    std::vector<MVM::Type::uint64> portsOutScale;
     int portsOutSize;
 
     DesignPorts() : portsIn PORT_IN_INFO, portsOut PORT_OUT_INFO {
-        std::vector<std::pair<std::string, unsigned long long>> portsInVec = PORT_IN_INFO;
+        std::vector<std::pair<std::string, MVM::Type::uint64>> portsInVec = PORT_IN_INFO;
         for (const auto & port : portsInVec) {
             portsInIndex[port.first] = portsInName.size();
             portsInName.push_back(port.first);
             portsInScale.push_back(port.second);
         }
         portsInSize = portsInScale.size();
-        std::vector<std::pair<std::string, unsigned long long>> portsOutVec = PORT_OUT_INFO;
+        std::vector<std::pair<std::string, MVM::Type::uint64>> portsOutVec = PORT_OUT_INFO;
         for (const auto & port : portsOutVec) {
             portsOutIndex[port.first] = portsOutName.size();
             portsOutName.push_back(port.first);
@@ -46,7 +46,7 @@ public:
         return instance;
     }
 
-    const std::unordered_map<std::string, unsigned long long> & getPortsIn() {
+    const std::unordered_map<std::string, MVM::Type::uint64> & getPortsIn() {
         return portsIn;
     }
 
@@ -54,7 +54,7 @@ public:
         return portsInIndex[portName];
     }
 
-    unsigned long long getPortsInScale(const std::string & portName) {
+    MVM::Type::uint64 getPortsInScale(const std::string & portName) {
         return portsIn[portName];
     }
 
@@ -62,15 +62,15 @@ public:
         return portsInName;
     }
 
-    const std::vector<unsigned long long> & getPortsInScale() {
+    const std::vector<MVM::Type::uint64> & getPortsInScale() {
         return portsInScale;
     }
 
-    unsigned long long getPortsInScale(int index) {
+    MVM::Type::uint64 getPortsInScale(int index) {
         return portsInScale[index];
     }
 
-    const std::unordered_map<std::string, unsigned long long> & getPortsOut() {
+    const std::unordered_map<std::string, MVM::Type::uint64> & getPortsOut() {
         return portsOut;
     }
 
@@ -78,7 +78,7 @@ public:
         return portsOutIndex[portName];
     }
 
-    unsigned long long getPortsOutScale(const std::string & portName) {
+    MVM::Type::uint64 getPortsOutScale(const std::string & portName) {
         return portsOut[portName];
     }
 
@@ -86,11 +86,11 @@ public:
         return portsOutName;
     }
 
-    const std::vector<unsigned long long> & getPortsOutScale() {
+    const std::vector<MVM::Type::uint64> & getPortsOutScale() {
         return portsOutScale;
     }
 
-    unsigned long long getPortsOutScale(int index) {
+    MVM::Type::uint64 getPortsOutScale(int index) {
         return portsOutScale[index];
     }
 
