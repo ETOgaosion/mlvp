@@ -27,7 +27,7 @@ public:
 
 class SimulatorlDriverRegistrar {
 private:
-    std::vector<std::unordered_map<std::string, std::shared_ptr<SimulatorDriver>>> driverModels;
+    std::vector<std::unordered_map<std::string, std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>>> driverModels;
     SimulatorlDriverRegistrar() = default;
 
 public:
@@ -38,19 +38,24 @@ public:
         return instance;
     }
 
-    int registerSimulatorDriver(std::vector<std::shared_ptr<SimulatorDriver>> inDriverModels) {
-        driverModels.push_back(std::unordered_map<std::string, std::shared_ptr<SimulatorDriver>>());
+    int registerSimulatorDriver(std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> inDriverModels) {
+        driverModels.push_back(std::unordered_map<std::string, std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>>());
         for (auto& driver : inDriverModels) {
-            driverModels.back()[driver->getName()] = driver;
+            driverModels.back()[driver.first->getName()] = driver;
         }
         return driverModels.size() - 1;
     }
 
-    std::shared_ptr<SimulatorDriver> getSimulatorDriver(int index, std::string inSimulatorName) {
+    std::shared_ptr<SimulatorDriver> getSimulatorDriver(int index, bool fromRef, std::string inSimulatorName) {
         if (driverModels.size() <= index) {
             throw std::runtime_error("SimulatorDriver not found");
         }
-        return driverModels[index][inSimulatorName];
+        if (fromRef) {
+            return driverModels[index][inSimulatorName].second;
+        }
+        else {
+            return driverModels[index][inSimulatorName].first;
+        }
     }
 
 

@@ -39,7 +39,7 @@ $<TARGET_OBJECTS:Transaction>
 )
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/design/Memory/memory.sv TOP_MODULE memory COVERAGE OPT_SLOW TRACE)
+    verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/design/Cache/cache.v TOP_MODULE Cache COVERAGE OPT_SLOW TRACE)
 else ()
-    verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/design/Memory/memory.sv TOP_MODULE memory COVERAGE OPT_FAST TRACE)
+    verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/design/Cache/cache.v TOP_MODULE Cache COVERAGE OPT_FAST TRACE)
 endif ()

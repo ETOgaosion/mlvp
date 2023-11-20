@@ -131,10 +131,11 @@ bool Transaction::compareRefDut(int type) {
 }
 
 
-int TransactionLauncher::setupTransaction(shared_ptr<SerialTestSet> dataSet) {
-    for (auto & test : (*dataSet)) {
-        auto transactionPtr = make_shared<Transaction>(test);
-        TransactionDatabase::getInstance().addTransaction(transactionPtr);
+int TransactionLauncher::setupTransaction(vector<SerialTestSingle> dataSet) {
+    vector<shared_ptr<Transaction>> transactions;
+    for (auto & test : dataSet) {
+        transactions.push_back(make_shared<Transaction>(test));
     }
-    return dataSet->size();
+    TransactionDatabase::getInstance().addTransaction(transactions);
+    return dataSet.size();
 }

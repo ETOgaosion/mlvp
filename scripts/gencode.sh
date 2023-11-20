@@ -62,6 +62,7 @@ echo "Design file without suffix: ${design_file_no_suffix}"
 # mv tmp/design/V*.a ${design_base}/${design_module}/
 
 # Move the generated *.h file to the target include path
+mkdir -p ${include_base}/${design_module}/
 mv tmp/design/V*.h ${include_base}/${design_module}/
 
 rm -r tmp/design

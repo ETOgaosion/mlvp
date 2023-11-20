@@ -338,7 +338,7 @@ private:
 public:
     TransactionLauncher() = delete;
 
-    static int setupTransaction(std::shared_ptr<MVM::Type::SerialTestSet> dataSet);
+    static int setupTransaction(std::vector<MVM::Type::SerialTestSingle> dataSet);
 
 };
 

@@ -78,18 +78,97 @@ public:
 
     bool setSize(int inSize);
 
+    /**
+     * @brief generate default spec for transaction port
+     * 
+     * @param inPortName transaction port name
+     * @param inGeneratorType refer to
+     * ```cpp
+     * enum class GeneratorType {
+     *      DIRECT_INPUT = 0,
+     *      RANDOM_GENERATOR = 1
+     *  };
+     * ```
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as **range max + 1 in random generator**
+     * @return true pass check
+     * @return false not pass check
+     */
     bool addPortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MVM::Type::uint64 inValue);
+
+    /**
+     * @brief generate default spec for transaction port
+     * 
+     * @param inPortName transaction port name
+     * @param inGeneratorType refer to
+     * ```cpp
+     * enum class GeneratorType {
+     *      DIRECT_INPUT = 0,
+     *      RANDOM_GENERATOR = 1
+     *  };
+     * ```
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as **range max + 1 in random generator**
+     * @param inPostHandler postHandler function of value
+     * @return true pass check
+     * @return false not pass check
+     */
     bool addPortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MVM::Type::uint64 inValue, std::function<MVM::Type::uint64(MVM::Type::uint64)> inPostHandler);
 
+    /**
+     * @brief Check PortTestSpec validity
+     * 
+     * @param portTestSpec 
+     * @return true valid
+     * @return false invalid
+     */
     bool checkPortSpec(PortTestSpec &portTestSpec);
+    
+    /**
+     * @brief Check PortTestSpec validity, splite struct above
+     * 
+     * @param portName 
+     * @param startIndex 
+     * @param endIndex 
+     * @param generatorType 
+     * @return true valid
+     * @return false invalid
+     */
     bool checkPortSpec(std::string portName, int startIndex, int &endIndex, GeneratorType generatorType);
+
+    /**
+     * @brief check all port spec
+     * 
+     * @return true 
+     * @return false 
+     */
     bool checkAllPortSpec();
 
-    bool addPortTestSpec(PortTestSpec portTestSpec);
-    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType);
-    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, std::vector<MVM::Type::uint64> value);
+    /**
+     * @brief add detailed spec for transaction port
+     * @details 
+     * 1. index must be in order
+     * 2. not have to cover whole range, use default value for the rest flexibly
+     * 
+     * @param portName transaction port name, **take effect in [startIndex, endIndex]**
+     * @param startIndex from which index in serialTest
+     * @param endIndex to which index in serialTest, **include**
+     * @param generatorType GeneratorType
+     * @param value if generator type is DIRECT_INPUT, this value will be used as default value, else the first element will be used as **range max + 1 in random generator**
+     * @return true 
+     * @return false 
+     */
+    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, TestData value);
 
+    /**
+     * @brief Generate serial test according to the spec
+     * 
+     * @param autoclear Set true to clear Generator tmp storage(clearSerialTest) after execution
+     */
     void generateSerialTest(bool autoclear = true);
+
+    /**
+     * @brief clear Generator tmp storage, must be done after 1 complete SerialTest setting
+     * 
+     */
     void clearSerialTest() { portTestSpecs.clear(); size = 0; }
 
 };

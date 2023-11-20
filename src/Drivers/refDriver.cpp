@@ -16,7 +16,7 @@ bool RefTransDriver::setTransaction(std::shared_ptr<MVM::Transaction::Transactio
         return false;
     }
     for (auto &simulatorName : simulatorNames) {
-        if (!SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, simulatorName)->setTransaction(inTransaction)) {
+        if (!SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, true, simulatorName)->setTransaction(inTransaction)) {
             throw std::runtime_error("Transaction is not finished yet");
             return false;
         }

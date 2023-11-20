@@ -4,6 +4,7 @@
 #include <unordered_map>
 
 #include "Transaction/transaction.h"
+#include "Library/types.h"
 
 namespace MVM {
 namespace Driver {
@@ -40,6 +41,11 @@ public:
     }
 
     virtual bool drivingStep() = 0;
+
+    virtual MVM::Type::uint64 syncSignal(std::string portName) { throw std::runtime_error("Not implemented"); return 0; }
+
+    virtual MVM::Type::uint64 syncSignal(std::string simulatorName, std::string portName) { throw std::runtime_error("Not implemented"); return 0; }
+
 
 }; // class DriverModel
 

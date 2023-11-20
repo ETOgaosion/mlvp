@@ -5,8 +5,6 @@
 #include <memory>
 #include <future>
 
-#include "Drivers/dutUnitDriver.h"
-#include "Drivers/refUnitDriver.h"
 #include "Drivers/driverModel.h"
 #include "Transaction/transaction.h"
 #include "Drivers/dutDriver.h"
@@ -16,7 +14,7 @@ namespace MVM {
 namespace Driver {
 class Driver {
 private:
-    std::unique_ptr<DriverModel> dutDriver; //!< Actual Type is DutTransDriver
+    std::shared_ptr<DriverModel> dutDriver; //!< Actual Type is DutTransDriver
     std::unique_ptr<DriverModel> refDriver; //!< Actual Type is RefTransDriver
     int transPtr = 0;
     std::vector<std::shared_ptr<MVM::Transaction::Transaction>> transactions;
@@ -34,8 +32,8 @@ public:
      * @param inRef Child of RefUnitDriver class
      * @param inRefSimulatorDrivers user defined simulator drivers for ref
      */
-    Driver(std::vector<std::shared_ptr<MVM::Transaction::Transaction>> inTransactions, std::unique_ptr<DriverModel> inDut, std::unique_ptr<DriverModel> inRef, int inDutSimulatorSetIndex, int inRefSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : transactions(inTransactions), dutDriver(std::make_unique<DutTransDriver>(inDut
-    , inDutSimulatorSetIndex, inSimulatorNames)), refDriver(std::make_unique<RefTransDriver>(inRef, inRefSimulatorSetIndex, inSimulatorNames)) {}
+    Driver(std::vector<std::shared_ptr<MVM::Transaction::Transaction>> inTransactions, std::unique_ptr<DriverModel> inDut, std::unique_ptr<DriverModel> inRef, int inDutSimulatorSetIndex, int inRefSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : transactions(inTransactions), dutDriver(std::make_shared<DutTransDriver>(inDut
+    , inDutSimulatorSetIndex, inSimulatorNames)), refDriver(std::make_unique<RefTransDriver>(inRef, inRefSimulatorSetIndex, inSimulatorNames, dutDriver)) {}
 
     void sendTransaction(bool toRef) {
         if (toRef) {

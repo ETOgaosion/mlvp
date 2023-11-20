@@ -5,12 +5,41 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <filesystem>
 
 #include "Drivers/driverModel.h"
 #include "Transaction/transaction.h"
 
 namespace MVM {
 namespace Driver {
+class DutUnitDriver : public MVM::Driver::DriverModel {
+protected:
+    const std::unique_ptr<VerilatedContext> contextp;
+    const std::unique_ptr<VerilatedVcdC> tfp;
+    std::string logPath;
+    
+public:
+    DutUnitDriver() = delete;
+    virtual ~DutUnitDriver() = default;
+
+    DutUnitDriver(std::string inUnitName, int inDriverID, std::string inLogPath) : DriverModel(inUnitName), logPath(inLogPath + "/Driver" + std::to_string(inDriverID)), contextp(std::make_unique<VerilatedContext>()), tfp(std::make_unique<VerilatedVcdC>()) {
+        std::filesystem::create_directories(logPath);
+        Verilated::traceEverOn(true);
+        contextp->traceEverOn(true);
+    }
+
+    // MVM::Type::uint64 syncSignal(std::string portName) override
+
+    /**
+     * bool drivingStep() override
+     * @brief Driving step for simulator
+     * @details just execute one test
+     *          no implementation will also be a pure function
+     *          [announcer]|[verifier] must implement
+     * 
+     */
+};
+
 class DutTransDriver : public DriverModel {
 private:
     std::unique_ptr<DriverModel> dut; //!< Actually a DutUnitDriver Child Implemented by user
@@ -31,15 +60,18 @@ public:
 
     bool setTransaction(std::shared_ptr<MVM::Transaction::Transaction> inTransaction) override;
 
+    MVM::Type::uint64 syncSignal(std::string portName) override {
+        return dut->syncSignal(portName);
+    }
+
     bool drivingStep() override {
-        bool ret = false;
         while (!transaction->checkTransactionFinish()) {
-            ret = dut->drivingStep();
+            dut->drivingStep();
             for (auto simulatorName : simulatorNames) {
-                SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, simulatorName)->drivingStep();
+                SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, false, simulatorName)->drivingStep();
             }
         }
-        return ret;
+        return true;
     }
 
 };

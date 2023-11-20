@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "Database/designPorts.h"
+#include "Database/database.h"
 
 using namespace std;
 using namespace MVM::Type;
@@ -126,36 +126,6 @@ bool PortSpecGeneratorModel::checkAllPortSpec() {
     return true;
 }
 
-bool PortSpecGeneratorModel::addPortTestSpec(PortTestSpec portTestSpec) {
-    if (!size) {
-        throw runtime_error("PortSpecGeneratorModel > Size is not set");
-    }
-    bool res = true;
-    if (portTestSpecs.contains(portTestSpec.portName)) {
-        res &= checkPortSpec(portTestSpec);
-        portTestSpecs[portTestSpec.portName].push_back(portTestSpec);
-    }
-    else {
-        portTestSpecs.emplace(make_pair(portTestSpec.portName, vector<PortTestSpec>(1, portTestSpec)));
-    }
-    return res;
-}
-
-bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType) {
-    if (!size) {
-        throw runtime_error("PortSpecGeneratorModel > Size is not set");
-    }
-    bool res = true;
-    if (portTestSpecs.contains(portName)) {
-        res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
-        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType);
-    }
-    else {
-        portTestSpecs.emplace(make_pair(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType))));
-    }
-    return res;
-}
-
 bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, TestData value) {
     bool res = true;
     if (portTestSpecs.contains(portName)) {
@@ -186,7 +156,7 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
             break;
         case GeneratorType::RANDOM_GENERATOR:
         {
-            uniform_int_distribution<uint64> dist(0, DesignPorts::getInstance().getPortsInScale(portSpec.second.portName) - 1);
+            uniform_int_distribution<uint64> dist(0, portSpec.second.value);
             for (int i = 0; i < size; i++) {
                 SerialTest[portSpec.second.portName][i] = portSpec.second.postHandler(dist(rng));
             }
@@ -215,7 +185,7 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
                 break;
             case GeneratorType::RANDOM_GENERATOR:
             {
-                uniform_int_distribution<uint64> dist(0, DesignPorts::getInstance().getPortsInScale(spec.portName) - 1);
+                uniform_int_distribution<uint64> dist(0, spec.value[0]);
                 for (int i = spec.startIndex; i <= spec.endIndex; i++) {
                     SerialTest[spec.portName][i] = spec.postHandler(dist(rng));
                 }

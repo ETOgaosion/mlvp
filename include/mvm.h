@@ -7,8 +7,6 @@
 #include "RefPack/ref.h"
 #include "TestGenerator/generatorHelper.h"
 #include "Spreader/spreader.h"
-#include "Drivers/dutUnitDriver.h"
-#include "Drivers/refUnitDriver.h"
 
 using namespace std;
 using namespace MVM::Type;
