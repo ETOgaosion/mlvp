@@ -2,11 +2,11 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "Transaction/transaction.h"
 
-namespace MVM {
-namespace Reporter {
+namespace MVM::Reporter {
 class Reporter {
 protected:
     std::string logPath;
@@ -15,7 +15,7 @@ protected:
 public:
     Reporter() = delete;
     
-    Reporter(std::string inLogPath, std::string inReportPath) : logPath(inLogPath), reportPath(inReportPath) {}
+    Reporter(std::string inLogPath, std::string inReportPath) : logPath(std::move(inLogPath)), reportPath(std::move(inReportPath)) {}
 
     virtual void makeReport() = 0;
 };
@@ -26,15 +26,11 @@ private:
 public:
     VerilatorReporter() = delete;
     
-    VerilatorReporter(std::string inLogPath, std::string inReportPath) : Reporter(inLogPath, inReportPath) {}
+    VerilatorReporter(std::string inLogPath, std::string inReportPath) : Reporter(std::move(inLogPath), std::move(inReportPath)) {}
 
     void makeReport() override;
 
 };
-
-
-} // namespace Reporter
-
 
 
 } // namespace MVM

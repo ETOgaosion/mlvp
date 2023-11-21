@@ -2,12 +2,12 @@
 
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "Transaction/transaction.h"
 #include "Library/types.h"
 
-namespace MVM {
-namespace Driver {
+namespace MVM::Driver {
 class DriverModel {
 protected:
     std::string name;
@@ -17,7 +17,7 @@ public:
     DriverModel() = default;
     virtual ~DriverModel() = default;
 
-    DriverModel(std::string inName) : name(inName) {}
+    explicit DriverModel(std::string inName) : name(std::move(inName)) {}
     
     std::string getName() {
         return name;
@@ -32,7 +32,7 @@ public:
             throw std::runtime_error("Transaction is not finished yet");
             return false;
         }
-        transaction = inTransaction;
+        transaction = std::move(inTransaction);
         return true;
     }
 
@@ -40,17 +40,9 @@ public:
         return transaction;
     }
 
-    virtual bool drivingStep() = 0;
-
-    virtual MVM::Type::uint64 syncSignal(std::string portName) { throw std::runtime_error("Not implemented"); return 0; }
-
-    virtual MVM::Type::uint64 syncSignal(std::string simulatorName, std::string portName) { throw std::runtime_error("Not implemented"); return 0; }
+    virtual bool drivingStep(bool isLast) = 0;
 
 
 }; // class DriverModel
 
-
-} // namespace Driver
-
-
-} // namespace MVM
+} // namespace MVM::Driver

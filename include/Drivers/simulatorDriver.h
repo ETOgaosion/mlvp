@@ -1,5 +1,7 @@
 #pragma once
 
+#include <utility>
+
 #include "Drivers/driverModel.h"
 #include "Simulator/simulator.h"
 
@@ -10,11 +12,11 @@ private:
 
 public:
     SimulatorDriver() = delete;
-    virtual ~SimulatorDriver() = default;
-    SimulatorDriver(std::string inSimulatorName, std::unique_ptr<MVM::Simulator::Simulator> inSimulator) : DriverModel(inSimulatorName), simulator(std::move(inSimulator)) {}
+    ~SimulatorDriver() override = default;
+    SimulatorDriver(std::string inSimulatorName, std::unique_ptr<MVM::Simulator::Simulator> inSimulator) : DriverModel(std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
 
     /**
-     * bool drivingStep() override
+     * bool drivingStep(bool isLast) override
      * @brief Driving step for simulator
      * @details just execute one test
      *          no implementation will also be a pure function
@@ -33,20 +35,20 @@ private:
 public:
     ~SimulatorlDriverRegistrar() = default;
 
-    static SimulatorlDriverRegistrar& getInstance() {
+    static SimulatorlDriverRegistrar &getInstance() {
         static SimulatorlDriverRegistrar instance;
         return instance;
     }
 
-    int registerSimulatorDriver(std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> inDriverModels) {
-        driverModels.push_back(std::unordered_map<std::string, std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>>());
-        for (auto& driver : inDriverModels) {
+    int registerSimulatorDriver(const std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> &inDriverModels) {
+        driverModels.emplace_back();
+        for (auto &driver : inDriverModels) {
             driverModels.back()[driver.first->getName()] = driver;
         }
-        return driverModels.size() - 1;
+        return (int)driverModels.size() - 1;
     }
 
-    std::shared_ptr<SimulatorDriver> getSimulatorDriver(int index, bool fromRef, std::string inSimulatorName) {
+    std::shared_ptr<SimulatorDriver> getSimulatorDriver(int index, bool fromRef, const std::string &inSimulatorName) {
         if (driverModels.size() <= index) {
             throw std::runtime_error("SimulatorDriver not found");
         }

@@ -10,20 +10,20 @@ private:
 public:
     DutMemoryDriver(int inDriverID, string inLogPath, shared_ptr<Transaction> inTransaction) : DutUnitDriver(inDriverID, inLogPath, inTransaction), top(std::make_unique<Vmemory>(contextp.get(), "top")) {
         contextp->debug(0);
-        // [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
+        //!< [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
         contextp->randReset(0);
         top->clk = 1;
         top->trace(tfp.get(), 99);
-        // this should be called after trace
+        //!< this should be called after trace
         tfp->open((logPath + "/memory.vcd").c_str());
     }
 
     /* just execute one test */
-    bool drivingStep() override {
+    bool drivingStep(bool isLast) override {
         if(!contextp->gotFinish()) {
             contextp->timeInc(1);
 
-            // assign input signals
+            //!< assign input signals
             top->clk = !top->clk;
             top->reset = transaction->getInSignal()[testPtr][0];
             top->addr = transaction->getInSignal()[testPtr][1];
@@ -31,18 +31,18 @@ public:
             top->rd_en = transaction->getInSignal()[testPtr][3];
             top->wdata = transaction->getInSignal()[testPtr][4];
 
-            // evaluate model
+            //!< evaluate model
             top->eval();
-            // generate trace
+            //!< generate trace
             tfp->dump(contextp->time());
 
-            // assign output signals
+            //!< assign output signals
             transaction->setDutOutSignal(testPtr, {top->rdata});
             
             testPtr++;
 
             if (testPtr == transaction->getTestsSize() - 1) {
-                // don't know why tfp dump lose last cycle
+                //!< don't know why tfp dump lose last cycle
                 contextp->timeInc(1);
                 top->clk = !top->clk;
                 top->eval();
@@ -51,7 +51,7 @@ public:
                 top->clk = !top->clk;
                 top->eval();
                 tfp->dump(contextp->time());
-                // output coverage
+                //!< output coverage
                 Verilated::mkdir(logPath.c_str());
                 contextp->coveragep()->write((logPath + "/coverage.dat").c_str());
                 tfp->close();
@@ -59,7 +59,7 @@ public:
             }
             return true;
         }
-        // reach test end
+        //!< reach test end
         return false;
     }
 };
@@ -71,12 +71,12 @@ private:
     unsigned short mem[4];
 
 public:
-    uint64 reset;
-    uint64 addr;
-    uint64 wr_en;
-    uint64 rd_en;
-    uint64 wdata;
-    uint64 rdata;
+    Data reset;
+    Data addr;
+    Data wr_en;
+    Data rd_en;
+    Data wdata;
+    Data rdata;
 
     RefMemory() {
         memset(mem, 0, sizeof(mem));   
@@ -109,29 +109,29 @@ public:
     RefMemoryDriver(shared_ptr<Transaction> inTransaction) : RefUnitDriver(inTransaction), top(make_unique<RefMemory>()) {}
 
     /* just execute one test */
-    bool drivingStep() override {
-        // assign input signals
+    bool drivingStep(bool isLast) override {
+        //!< assign input signals
         top->reset = transaction->getInSignal()[testPtr][0];
         top->addr = transaction->getInSignal()[testPtr][1];
         top->wr_en = transaction->getInSignal()[testPtr][2];
         top->rd_en = transaction->getInSignal()[testPtr][3];
         top->wdata = transaction->getInSignal()[testPtr][4];
 
-        // evaluate model
+        //!< evaluate model
         top->eval();
 
-        // assign output signals
+        //!< assign output signals
         transaction->setRefOutSignal(testPtr, {top->rdata});
         return true;
     }
 };
 
 int main() {
-    // Generate Tests
+    //!< Generate Tests
     shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
 
     PortSpecGeneratorModel portSpecGeneratorModel(userTests);
-    for (uint64 i = 1; i < 5; i++) {
+    for (Data i = 1; i < 5; i++) {
         portSpecGeneratorModel.setSize(6);
         portSpecGeneratorModel.addPortTestSpec("reset", 0, 1, GeneratorType::DIRECT_INPUT, {1});
         portSpecGeneratorModel.addPortTestSpec("addr" , 0, 5, GeneratorType::DIRECT_INPUT, {i});
@@ -142,7 +142,7 @@ int main() {
     }
 
 
-    // Execution
+    //!< Execution
     TransactionLauncher::setupTransaction(1000, userTests->getTests());
     Spreader<DutMemoryDriver, RefMemoryDriver, VerilatorReporter> spreader("log/memory", "report/memory");
     spreader.execute();

@@ -11,8 +11,7 @@
 #include "Transaction/transaction.h"
 #include "Database/database.h"
 
-namespace MVM {
-namespace Spreader {
+namespace MVM::Spreader {
 template <class TDut, class TRef, class TReport>
 class Spreader
 {
@@ -26,19 +25,18 @@ public:
     Spreader() = delete;
     ~Spreader() = default;
 
-    Spreader(std::string inUnitName, std::string inLogPath, std::string inReportPath, std::vector<std::vector<std::shared_ptr<SimulatorDriver>>> inDriverModels) : reporter(std::make_unique<TReport>(inLogPath, inReportPath)) {
+    Spreader(std::string inUnitName, std::string inLogPath, std::string inReportPath, int inSimulatorMaxIndex, std::vector<std::string> inSimulatorNames) : reporter(std::make_unique<TReport>(inLogPath, inReportPath)) {
+        if (inSimulatorMaxIndex != MVM::Database::TransactionDatabase::getInstance().getTransactionSize()) {
+            throw std::runtime_error("SimulatorMaxIndex not match with TransactionDatabase");
+        }
+        if (inSimulatorMaxIndex != inSimulatorNames.size()) {
+            throw std::runtime_error("SimulatorMaxIndex not match with SimulatorNames");
+        }
         driver.clear();
         threadsPools.clear();
-        int dutSimulatorIndex = 0, refSimulatorIndex = 0;
-        std::vector<std::string> simulatorNames;
-        for (int i = 0; i < MVM::Database::TransactionDatabase::getInstance().getTransactionSize(); i++) {
-            dutSimulatorIndex = MVM::Driver::SimulatorlDriverRegistrar::getInstance().registerSimulatorDriver(inDriverModels[2 * i]);
-            refSimulatorIndex = MVM::Driver::SimulatorlDriverRegistrar::getInstance().registerSimulatorDriver(inDriverModels[2 * i + 1]);
-            for (auto& driver : inDriverModels[2 * i]) {
-                simulatorNames.push_back(driver->getName());
-            }
-            driver.emplace_back(MVM::Database::TransactionDatabase::getInstance().getTransaction(i), std::make_unique<TDut>(inUnitName, i, inLogPath), std::make_unique<TRef>(inUnitName, i, inLogPath), dutSimulatorIndex, refSimulatorIndex, simulatorNames);
-            simulatorNames.clear();
+        for (int i = 0; i < inSimulatorMaxIndex; i++) {
+            driver.emplace_back(MVM::Database::TransactionDatabase::getInstance().getTransaction(i), std::make_unique<TDut>(inUnitName, i, inLogPath), std::make_unique<TRef>(inUnitName, i, inLogPath), inSimulatorMaxIndex, inSimulatorNames);
+            inSimulatorNames.clear();
             errorMsgsPool.push_back(std::make_shared<std::string>(""));
         }
     }
@@ -46,7 +44,7 @@ public:
     void execute(){
         if (USE_THREADS) {
             for (int i = 0; i < driver.size(); i++) {
-                threadsPools.push_back(std::async(std::launch::async, &MVM::Driver::Driver<TDut, TRef>::driving, driver[i].get(), errorMsgsPool[i]));
+                threadsPools.push_back(std::async(std::launch::async, &MVM::Driver::Driver::driving, driver[i].get(), errorMsgsPool[i]));
             }
             for (int i = 0; i < errorMsgsPool.size(); i++) {
                 if(threadsPools[i].get() >= 0) {
@@ -63,9 +61,4 @@ public:
     }
 };
 
-
-
-} // namespace Spreader
-
-
-} // namespace MVM
+} // namespace MVM::Spreader

@@ -24,18 +24,18 @@ public:
         return instance;
     }
 
-    void registerEval(std::string inSrc, std::string inDest, bool isResponse, std::function<bool(MVM::Type::SerialTestSingle, MVM::Type::SerialTestSingle)> inEvalFunc);
+    void registerEval(const std::string &inSrc, const std::string &inDest, bool isResponse, std::function<bool(MVM::Type::SerialTestSingle, MVM::Type::SerialTestSingle)> inEvalFunc);
 
-    bool hasValidUserEval(std::string inSrc, std::string inDest, bool isResponse) {
+    bool hasValidUserEval(const std::string &inSrc, const std::string &inDest, bool isResponse) {
         return userEvalSet.contains(std::make_tuple(inSrc, inDest, isResponse));
     }
 
-    std::function<bool(MVM::Type::SerialTestSingle, MVM::Type::SerialTestSingle)> getEval(std::string inSrc, std::string inDest, bool isResponse) {
+    std::function<bool(MVM::Type::SerialTestSingle, MVM::Type::SerialTestSingle)> getEval(const std::string &inSrc, const std::string &inDest, bool isResponse) {
         return userEvalSet[std::make_tuple(inSrc, inDest, isResponse)];
     }
 
-    bool eval(std::string inSrc, std::string inDest, bool isResponse, MVM::Type::SerialTestSingle inSignal, MVM::Type::SerialTestSingle outSignal) {
-        return userEvalSet[std::make_tuple(inSrc, inDest, isResponse)](inSignal, outSignal);
+    bool eval(const std::string &inSrc, const std::string &inDest, bool isResponse, MVM::Type::SerialTestSingle dutSignal, MVM::Type::SerialTestSingle refSignal) {
+        return userEvalSet[std::make_tuple(inSrc, inDest, isResponse)](std::move(dutSignal), std::move(refSignal));
     }
 };
 

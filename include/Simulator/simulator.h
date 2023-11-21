@@ -32,7 +32,7 @@ public:
     /**
      * @brief Get the Output ports-data
      * 
-     * @return const MVM::Type::SerialTestSingle& 
+     * @return const MVM::Type::SerialTestSingle & 
      */
     virtual const MVM::Type::SerialTestSingle &getOutput() = 0;
 };

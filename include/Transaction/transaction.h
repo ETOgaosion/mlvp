@@ -1,5 +1,6 @@
 #pragma once
 
+#include <string>
 #include <utility>
 #include <vector>
 #include <memory>
@@ -7,8 +8,10 @@
 #include <map>
 #include <optional>
 #include <utility>
+#include <functional>
 
 #include "Library/types.h"
+#include "Library/error.h"
 #include "Evaluator/evaluate.h"
 
 namespace MVM::Transaction {
@@ -16,7 +19,7 @@ namespace MVM::Transaction {
 class TransactionCounter
 {
 private:
-    MVM::Type::uint64 transactionBaseID;
+    MVM::Type::Data transactionBaseID;
     std::mutex transactionCounterMutex;
 
     TransactionCounter() : transactionBaseID(0) {}
@@ -25,12 +28,12 @@ public:
     TransactionCounter(TransactionCounter const &) = delete;
     void operator=(TransactionCounter const &) = delete;
 
-    static TransactionCounter & getInstance() {
+    static TransactionCounter &getInstance() {
         static TransactionCounter instance;
         return instance;
     }
 
-    MVM::Type::uint64 getTransactionID() {
+    MVM::Type::Data getTransactionID() {
         std::lock_guard<std::mutex> lock(transactionCounterMutex);
         return transactionBaseID++;
     }
@@ -52,7 +55,11 @@ private:
 
 public:
     int cycles;
-    TransactionTop() = delete;
+
+    TransactionTop() : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), cycles(0), inSignal({}) {
+        dutOutSignal.clear();
+        refOutSignal.clear();
+    }
     ~TransactionTop() = default;
     explicit TransactionTop(MVM::Type::SerialTestSingle newInSignal) : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), cycles(0), inSignal(std::move(newInSignal)) {
         dutOutSignal.clear();
@@ -60,7 +67,16 @@ public:
     }
 
     bool isAllDone() {
-        return dutStatus == TransactionReqStatus::DONE && refStatus == TransactionReqStatus::DONE;
+        return dutStatus == TransactionReqStatus::DONE &&refStatus == TransactionReqStatus::DONE;
+    }
+
+    void setDone(bool fromRef) {
+        if (fromRef) {
+            refStatus = TransactionReqStatus::DONE;
+        }
+        else {
+            dutStatus = TransactionReqStatus::DONE;
+        }
     }
 
     int getCycles() const {
@@ -75,11 +91,29 @@ public:
         cycles = inCycles;
     }
 
-    const MVM::Type::SerialTestSingle & getInSignal() {
+    bool setInSignal(const std::string &portName, MVM::Type::Data data) {
+        if (inSignal.contains(portName)) {
+            if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+                throw std::runtime_error("Transaction in signal port name conflict");
+            }
+            return false;
+        }
+        inSignal[portName] = data;
+        return true;
+    }
+
+    MVM::Type::Data getInSignal(const std::string &portName) {
+        if (!inSignal.contains(portName)) {
+            throw std::runtime_error("Transaction in signal port name not found");
+        }
+        return inSignal[portName];
+    }
+
+    const MVM::Type::SerialTestSingle &getInSignal() {
         return inSignal;
     }
 
-    const MVM::Type::SerialTestSingle & getOutSignal(bool fromRef) {
+    const MVM::Type::SerialTestSingle &getOutSignal(bool fromRef) {
         if (fromRef) {
             refStatus = TransactionReqStatus::HANDLING;
             return refOutSignal;
@@ -90,7 +124,24 @@ public:
         }
     }
 
-    void setDutOutSignal(const MVM::Type::SerialTestSingle& inOutSignal, bool fromRef) {
+    MVM::Type::Data getOutSignal(const std::string &portName, bool fromRef) {
+        if (fromRef) {
+            refStatus = TransactionReqStatus::HANDLING;
+            if (!refOutSignal.contains(portName)) {
+                throw std::runtime_error("Transaction out signal port name not found");
+            }
+            return refOutSignal[portName];
+        }
+        else {
+            dutStatus = TransactionReqStatus::HANDLING;
+            if (!dutOutSignal.contains(portName)) {
+                throw std::runtime_error("Transaction out signal port name not found");
+            }
+            return dutOutSignal[portName];
+        }
+    }
+
+    void setOutSignal(const MVM::Type::SerialTestSingle &inOutSignal, bool fromRef) {
         if (fromRef) {
             refStatus = TransactionReqStatus::DONE;
             refOutSignal = inOutSignal;
@@ -101,7 +152,33 @@ public:
         }
     }
 
+    void setOutSignal(const std::string &portName, MVM::Type::Data data, bool fromRef) {
+        if (fromRef) {
+            refStatus = TransactionReqStatus::DONE;
+            if (refOutSignal.contains(portName)) {
+                if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+                    throw std::runtime_error("Transaction out signal port name conflict");
+                }
+                return;
+            }
+            refOutSignal[portName] = data;
+        }
+        else {
+            dutStatus = TransactionReqStatus::DONE;
+            if (dutOutSignal.contains(portName)) {
+                if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+                    throw std::runtime_error("Transaction out signal port name conflict");
+                }
+                return;
+            }
+            dutOutSignal[portName] = data;
+        }
+    }
+
     bool compareRefDut() {
+        if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval("user", "top", true)) {
+            return MVM::Evaluator::Evaluator::getInstance().eval("user", "top", true, dutOutSignal, refOutSignal);
+        }
         return dutOutSignal == refOutSignal;
     }
 };
@@ -119,8 +196,11 @@ public:
     std::string dest;
     MVM::Type::SerialTestSingle inSignal;
 
+    TransactionReq() = delete;
     ~TransactionReq() = default;
-    TransactionReq(int inId, std::string inSrc, std::string inDest, const MVM::Type::SerialTestSingle&) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW), inSignal(inSignal) {}
+
+    TransactionReq(int inId, std::string inSrc, std::string inDest) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW) { inSignal.clear(); }
+    TransactionReq(int inId, std::string inSrc, std::string inDest, MVM::Type::SerialTestSingle  newInSignal) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW), inSignal(std::move(newInSignal)) {}
 
     bool isNew() {
         return status == TransactionReqStatus::NEW;
@@ -145,12 +225,14 @@ public:
     }
 
     void setResp(std::shared_ptr<TransactionResp> inResp) {
-        resp = inResp;
+        resp = std::move(inResp);
     }
 
     std::shared_ptr<TransactionResp> getResp() {
         return resp;
     }
+
+
 
 };
 
@@ -162,7 +244,29 @@ struct TransactionResp {
     std::shared_ptr<TransactionReq> req;
 
     TransactionResp() = delete;
-    TransactionResp(std::shared_ptr<TransactionReq> inReq, std::string inSrc, std::string inDest, MVM::Type::SerialTestSingle inOutSignal) : id(inReq->id), src(inSrc), dest(inDest), outSignal(inOutSignal) {}
+    TransactionResp(const std::shared_ptr<TransactionReq>&inReq, std::string inSrc, std::string inDest) : req(inReq), id(inReq->id), src(std::move(inSrc)), dest(std::move(inDest)) { outSignal.clear(); }
+    TransactionResp(const std::shared_ptr<TransactionReq>&inReq, std::string inSrc, std::string inDest, MVM::Type::SerialTestSingle inOutSignal) : req(inReq), id(inReq->id), src(std::move(inSrc)), dest(std::move(inDest)), outSignal(std::move(inOutSignal)) {}
+
+    void setOutSignal(MVM::Type::SerialTestSingle inOutSignal) {
+        outSignal = std::move(inOutSignal);
+    }
+
+    void setOutSignal(const std::string &portName, MVM::Type::Data data) {
+        if (outSignal.contains(portName)) {
+            if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+                throw std::runtime_error("Transaction response out signal port name conflict");
+            }
+            return;
+        }
+        outSignal[portName] = data;
+    }
+
+    MVM::Type::Data getOutSignal(const std::string &portName) {
+        if (!outSignal.contains(portName)) {
+            throw std::runtime_error("Transaction response out signal port name not found");
+        }
+        return outSignal[portName];
+    }
 };
 
 /**
@@ -172,9 +276,10 @@ struct TransactionResp {
 class Transaction
 {
 private:
-    MVM::Type::uint64 transactionID;
+    MVM::Type::Data transactionID;
     std::mutex transactionMutex;
 
+public:
     /**
      * @brief Top level transaction interface, no interact with other modules
      * 
@@ -197,13 +302,52 @@ private:
     std::map<std::pair<std::string, std::string>, std::vector<std::pair<TransactionReq, std::optional<TransactionResp>>>> dutUserTransactions;
     std::map<std::pair<std::string, std::string>, std::vector<std::pair<TransactionReq, std::optional<TransactionResp>>>> refUserTransactions;
 
-public:
     Transaction() = delete;
     ~Transaction() = default;
 
-    Transaction(MVM::Type::SerialTestSingle inTest) : transactionItems(inTest), dutUserTransactions({}), refUserTransactions({}) {
+    explicit Transaction(MVM::Type::SerialTestSingle inTest) : transactionItems(std::move(inTest)), dutUserTransactions({}), refUserTransactions({}) {
         transactionID = TransactionCounter::getInstance().getTransactionID();
     }
+
+    MVM::Type::Data getTransactionID() const {
+        return transactionID;
+    }
+
+    // ============================== TransactionItem Methods ==============================
+    void setOutSignal(const MVM::Type::SerialTestSingle &inOutSignal, bool fromRef) {
+        std::lock_guard<std::mutex> lock(transactionMutex);
+        transactionItems.setOutSignal(inOutSignal, fromRef);
+    }
+
+    void setOutSignal(const std::string &portName, MVM::Type::Data data, bool fromRef) {
+        std::lock_guard<std::mutex> lock(transactionMutex);
+        transactionItems.setOutSignal(portName, data, fromRef);
+    }
+
+    void setCycle(int cycles) {
+        std::lock_guard<std::mutex> lock(transactionMutex);
+        transactionItems.setCycles(cycles);
+    }
+
+    const MVM::Type::SerialTestSingle &getInSignal() {
+        return transactionItems.getInSignal();
+    }
+
+    MVM::Type::Data getInSignal(const std::string &portName) {
+        return transactionItems.getInSignal(portName);
+    }
+
+    const MVM::Type::SerialTestSingle &getOutSignal(bool fromRef) {
+        return transactionItems.getOutSignal(fromRef);
+    }
+
+    MVM::Type::Data getCycles() const {
+        return transactionItems.getCycles();
+    }
+
+    // ================================== TransactionReq Methods ====================================
+
+    // ================================== Request - Response method ====================================
 
     /**
      * @brief recommended method to add a inter-module request
@@ -213,7 +357,16 @@ public:
      * @param inSignal request port - data signal
      * @param fromRef whether the request is from 0 - dut or 1 - ref
      */
-    const TransactionReq & addRequest(std::string inSrc, std::string inDest, MVM::Type::SerialTestSingle inSignal, bool fromRef);
+    const TransactionReq &addRequest(const std::string &inSrc, const std::string &inDest, const MVM::Type::SerialTestSingle &inSignal, bool fromRef);
+
+    /**
+     * @brief recommended method to add a inter-module request
+     * 
+     * @param inSrc source module name
+     * @param inDest destination module name
+     * @param fromRef whether the request is from 0 - dut or 1 - ref
+     */
+    TransactionReq &addRequest(const std::string &inSrc, const std::string &inDest, bool fromRef);
 
     /**
      * @brief add response to a request
@@ -225,98 +378,88 @@ public:
     void addResponse(TransactionReq &req, MVM::Type::SerialTestSingle outSignal, bool fromRef);
 
     /**
-     * @brief get all unhandled requests
-     * @param fromRef
-     * @return
+     * @brief check whether there is a request from src to dest
+     * 
+     * @param src request src
+     * @param dest request dest
+     * @param fromRef dut or ref
+     * @param totalNumber max transaction numbers waiting for response
+     * @return true 
+     * @return false 
      */
-    const std::vector<TransactionReq> &getUnhandledRequests(bool fromRef);
+    std::vector<int> checkRequest(const std::string &src, const std::string &dest, bool fromRef, bool &totalNumber);
 
-    std::optional<TransactionReq> getOneRequest(bool fromRef, bool &valid);
+    /**
+     * @brief Get the Request object
+     * 
+     * @param src 
+     * @param dest 
+     * @param reqId 
+     * @param fromRef 
+     * @return const TransactionReq& 
+     */
+    const TransactionReq &getRequest(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+        return fromRef ? refUserTransactions[std::make_pair(src, dest)][reqId].first : dutUserTransactions[std::make_pair(src, dest)][reqId].first;
+    }
 
+    /**
+     * @brief get request number
+     * 
+     * @param src 
+     * @param dest 
+     * @param fromRef 
+     * @return int 
+     */
+    int checkRequestNumber(const std::string &src, const std::string &dest, bool fromRef) {
+        return fromRef ? (int)refUserTransactions[std::make_pair(src, dest)].size() : (int)dutUserTransactions[std::make_pair(src, dest)].size();
+    }
+
+    /**
+     * @brief Get the Response object
+     * 
+     * @param src 
+     * @param dest 
+     * @param reqId 
+     * @param fromRef 
+     * @return const TransactionResp& 
+     */
+    const TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+        return fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second.value() : dutUserTransactions[std::make_pair(dest, src)][reqId].second.value();
+    }
+
+    /**
+     * @brief Check whether the response exist
+     * 
+     * @param src 
+     * @param dest 
+     * @param index 
+     * @param fromRef 
+     * @return true 
+     * @return false 
+     */
+    bool checkResponseExistence(const std::string &src, const std::string &dest, int index, bool fromRef) {
+        return fromRef ? refUserTransactions[std::make_pair(dest, src)][index].second.has_value() : dutUserTransactions[std::make_pair(dest, src)][index].second.has_value();
+    }
+
+    /**
+     * @brief check the dut and ref transaction finished
+     * 
+     * @return true 
+     * @return false 
+     */
     bool checkTransactionFinish();
 
-    const std::vector<TransactionResp> & getAllTransactionResp(bool fromRef);
+    std::vector<std::reference_wrapper<TransactionResp>> getAllTransactionResp(bool fromRef);
 
-    void setOutSignal(MVM::Type::SerialTestSingle inOutSignal, bool fromRef) {
-        std::lock_guard<std::mutex> lock(transactionMutex);
-        transactionItems.setDutOutSignal(inOutSignal, fromRef);
-    }
+    // =========================================== Comparison of dut ref ==============================================
 
-    void setCycle(int cycles) {
-        std::lock_guard<std::mutex> lock(transactionMutex);
-        transactionItems.setCycles(cycles);
-    }
+    static bool compareRefDutResponse(TransactionReq &dutReq, TransactionReq &refReq);
 
-    MVM::Type::uint64 getTransactionID() {
-        return transactionID;
-    }
+    bool compareRefDutResponse(const std::string &src, const std::string &dest, int dutReqId, int refReqId);
 
-    const MVM::Type::SerialTestSingle & getInSignal() {
-        return transactionItems.getInSignal();
-    }
+    bool compareRefDutResponse(const TransactionReq &req);
 
-    const MVM::Type::SerialTestSingle & getOutSignal(bool fromRef) {
-        return transactionItems.getOutSignal(fromRef);
-    }
-
-    MVM::Type::uint64 getCycles() {
-        return transactionItems.getCycles();
-    }
-
-    bool compareRefDutResponse(TransactionReq &dutReq, TransactionReq &refReq) {
-        if (!dutReq.getResp() || !refReq.getResp()) {
-            throw std::runtime_error("Transaction response not found");
-        }
-        if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(dutReq.src, dutReq.dest, true)) {
-            return MVM::Evaluator::Evaluator::getInstance().eval(dutReq.src, dutReq.dest, true, dutReq.inSignal, dutReq.getResp()->outSignal);
-        }
-        else {
-            return dutReq.getResp()->outSignal == refReq.getResp()->outSignal;
-        }
-    }
-
-    bool compareRefDutResponse(std::string src, std::string dest, int reqId) {
-        auto modulePair = std::make_pair(src, dest);
-        if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
-            throw std::runtime_error("Transaction request not found");
-        }
-        if (!dutUserTransactions[modulePair][reqId].second.has_value() || !refUserTransactions[modulePair][reqId].second.has_value()) {
-            throw std::runtime_error("Transaction response not found");
-        }
-        if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(src, dest, true)) {
-            return MVM::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][reqId].first.inSignal, dutUserTransactions[modulePair][reqId].second.value().outSignal);
-        }
-        else {
-            return dutUserTransactions[modulePair][reqId].second.value().outSignal == refUserTransactions[modulePair][reqId].second.value().outSignal;
-        }
-    }
-
-    bool compareRefDutResponse(const TransactionReq &req) {
-        auto modulePair = std::make_pair(req.src, req.dest);
-        if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
-            throw std::runtime_error("Transaction request not found");
-        }
-        if (!dutUserTransactions[modulePair][req.id].second.has_value() || !refUserTransactions[modulePair][req.id].second.has_value()) {
-            throw std::runtime_error("Transaction response not found");
-        }
-        if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(req.src, req.dest, true)) {
-            return MVM::Evaluator::Evaluator::getInstance().eval(req.src, req.dest, true, dutUserTransactions[modulePair][req.id].first.inSignal, dutUserTransactions[modulePair][req.id].second.value().outSignal);
-        }
-        else {
-            return dutUserTransactions[modulePair][req.id].second.value().outSignal == refUserTransactions[modulePair][req.id].second.value().outSignal;
-        }
-    }
-
-    bool compareRefDutResponse() {
-        for (auto &transaction : dutUserTransactions) {
-            for (int i = 0; i < transaction.second.size(); i++) {
-                if (!compareRefDutResponse(transaction.first.first, transaction.first.second, i)) {
-                    return false;
-                }
-            }
-        }
-        return true;
-    }
+    bool compareRefDutResponse();
 
     /**
      * @brief compare the dut and ref response

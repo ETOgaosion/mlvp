@@ -3,8 +3,7 @@
 #include <string>
 #include <iostream>
 
-namespace MVM {
-namespace Library {
+namespace MVM::Library {
 enum class Degree {
     SKIP = 0,
     LOW = 1,
@@ -14,7 +13,7 @@ enum class Degree {
 
 static Degree bugHandleDegree = BUGDEGREE;
 
-static void FunctionNotImplementError(std::string functionName) {
+static void FunctionNotImplementError(const std::string &functionName) {
     switch (bugHandleDegree)
     {
     case MVM::Library::Degree::HIGH:
@@ -27,6 +26,4 @@ static void FunctionNotImplementError(std::string functionName) {
     }
 }
 
-} // namespace Library
-
-} // namespace MVM
+} // namespace MVM::Library

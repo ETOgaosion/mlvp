@@ -1,4 +1,7 @@
 #include "Transaction/transaction.h"
+
+#include <functional>
+#include <utility>
 #include "Database/database.h"
 #include "Library/error.h"
 
@@ -8,17 +11,33 @@ using namespace MVM::Database;
 using namespace MVM::Type;
 using namespace MVM::Library;
 
-const TransactionReq & Transaction::addRequest(string inSrc, string inDest, SerialTestSingle inSignal, bool fromRef) {
+const TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, const SerialTestSingle &inSignal, bool fromRef) {
     lock_guard<mutex> lock(transactionMutex);
     auto modulePair = make_pair(inSrc, inDest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (userTransaction.contains(modulePair)) {
-        TransactionReq req(userTransaction[modulePair].size(), inSrc, inDest, inSignal);
-        userTransaction[modulePair].push_back(make_pair(req, nullopt));
+        TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest, inSignal);
+        userTransaction[modulePair].emplace_back(req, nullopt);
         return userTransaction[modulePair].back().first;
     }
     else {
         TransactionReq req(0, inSrc, inDest, inSignal);
+        userTransaction[modulePair] = vector<pair<TransactionReq, optional<TransactionResp>>>{make_pair(req, nullopt)};
+        return userTransaction[modulePair].back().first;
+    }
+}
+
+TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, bool fromRef) {
+    lock_guard<mutex> lock(transactionMutex);
+    auto modulePair = make_pair(inSrc, inDest);
+    auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
+    if (userTransaction.contains(modulePair)) {
+        TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest);
+        userTransaction[modulePair].emplace_back(req, nullopt);
+        return userTransaction[modulePair].back().first;
+    }
+    else {
+        TransactionReq req(0, inSrc, inDest);
         userTransaction[modulePair] = vector<pair<TransactionReq, optional<TransactionResp>>>{make_pair(req, nullopt)};
         return userTransaction[modulePair].back().first;
     }
@@ -32,37 +51,10 @@ void Transaction::addResponse(TransactionReq &req, SerialTestSingle outSignal, b
         throw runtime_error("Transaction request not found");
     }
     auto &transactionItem = userTransaction[modulePair][req.id];
-    TransactionResp resp(make_shared<TransactionReq>(transactionItem.first), req.dest, req.src, outSignal);
-    transactionItem.second = make_optional(move(resp));
+    TransactionResp resp(make_shared<TransactionReq>(transactionItem.first), req.dest, req.src, std::move(outSignal));
+    transactionItem.second = make_optional(std::move(resp));
     transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.value()));
     transactionItem.first.setDone();
-}
-
-const vector<TransactionReq> & Transaction::getUnhandledRequests(bool fromRef) {
-    vector<TransactionReq> unhandledRequest;
-    auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
-    for (auto & transaction : userTransaction) {
-        for (auto & transactionItem : transaction.second) {
-            if (transactionItem.first.isNew()) {
-                unhandledRequest.push_back(transactionItem.first);
-            }
-        }
-    }
-    return unhandledRequest;
-}
-
-optional<TransactionReq> Transaction::getOneRequest(bool fromRef, bool &valid) {
-    auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
-    for (auto & transaction : userTransaction) {
-        for (auto &transactionItem : transaction.second) {
-            if (transactionItem.first.isNew()) {
-                valid = true;
-                return make_optional(transactionItem.first);
-            }
-        }
-    }
-    valid = false;
-    return nullopt;
 }
 
 bool Transaction::checkTransactionFinish() {
@@ -72,7 +64,7 @@ bool Transaction::checkTransactionFinish() {
                 return false;
             }
             else {
-                for (auto & dutTrans : dutUserTransactions) {
+                for (auto &dutTrans : dutUserTransactions) {
                     if (!refUserTransactions.contains(dutTrans.first) || dutTrans.second.size() != refUserTransactions[dutTrans.first].size()) {
                         return false;
                     }
@@ -90,20 +82,75 @@ bool Transaction::checkTransactionFinish() {
         return false;
 }
 
-const vector<TransactionResp> & Transaction::getAllTransactionResp(bool fromRef) {
-    vector<TransactionResp> transactionResp;
+vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bool fromRef) {
+    vector<reference_wrapper<TransactionResp>> transactionResp;
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
-    for (auto & transaction : userTransaction) {
-        for (auto & transactionItems : transaction.second) {
+    for (auto &transaction : userTransaction) {
+        for (auto &transactionItems : transaction.second) {
             if (!transactionItems.second.has_value()) {
                 throw runtime_error("Transaction response not found");
             }
             else {
-                transactionResp.push_back(transactionItems.second.value());
+                transactionResp.emplace_back(transactionItems.second.value());
             }
         }
     }
     return transactionResp;
+}
+
+bool Transaction::compareRefDutResponse(TransactionReq &dutReq, TransactionReq &refReq) {
+    if (!dutReq.getResp() || !refReq.getResp()) {
+        throw std::runtime_error("Transaction response not found");
+    }
+    if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(dutReq.src, dutReq.dest, true)) {
+        return MVM::Evaluator::Evaluator::getInstance().eval(dutReq.src, dutReq.dest, true, dutReq.inSignal, dutReq.getResp()->outSignal);
+    }
+    else {
+        return dutReq.getResp()->outSignal == refReq.getResp()->outSignal;
+    }
+}
+
+bool Transaction::compareRefDutResponse(const std::string &src, const std::string &dest, int dutReqId, int refReqId) {
+    auto modulePair = std::make_pair(src, dest);
+    if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
+        throw std::runtime_error("Transaction request not found");
+    }
+    if (!dutUserTransactions[modulePair][dutReqId].second.has_value() || !refUserTransactions[modulePair][refReqId].second.has_value()) {
+        throw std::runtime_error("Transaction response not found");
+    }
+    if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(src, dest, true)) {
+        return MVM::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][dutReqId].first.inSignal, refUserTransactions[modulePair][refReqId].second.value().outSignal);
+    }
+    else {
+        return dutUserTransactions[modulePair][dutReqId].second.value().outSignal == refUserTransactions[modulePair][refReqId].second.value().outSignal;
+    }
+}
+
+bool Transaction::compareRefDutResponse(const TransactionReq &req) {
+    auto modulePair = std::make_pair(req.src, req.dest);
+    if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
+        throw std::runtime_error("Transaction request not found");
+    }
+    if (!dutUserTransactions[modulePair][req.id].second.has_value() || !refUserTransactions[modulePair][req.id].second.has_value()) {
+        throw std::runtime_error("Transaction response not found");
+    }
+    if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(req.src, req.dest, true)) {
+        return MVM::Evaluator::Evaluator::getInstance().eval(req.src, req.dest, true, dutUserTransactions[modulePair][req.id].first.inSignal, dutUserTransactions[modulePair][req.id].second.value().outSignal);
+    }
+    else {
+        return dutUserTransactions[modulePair][req.id].second.value().outSignal == refUserTransactions[modulePair][req.id].second.value().outSignal;
+    }
+}
+
+bool Transaction::compareRefDutResponse() {
+    for (auto &transaction : dutUserTransactions) {
+        for (int i = 0; i < transaction.second.size(); i++) {
+            if (!compareRefDutResponse(transaction.first.first, transaction.first.second, i, i)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }
 
 bool Transaction::compareRefDut(int type) {
@@ -133,9 +180,10 @@ bool Transaction::compareRefDut(int type) {
 
 int TransactionLauncher::setupTransaction(vector<SerialTestSingle> dataSet) {
     vector<shared_ptr<Transaction>> transactions;
-    for (auto & test : dataSet) {
+    transactions.reserve(dataSet.size());
+    for (auto &test : dataSet) {
         transactions.push_back(make_shared<Transaction>(test));
     }
     TransactionDatabase::getInstance().addTransaction(transactions);
-    return dataSet.size();
+    return (int)dataSet.size();
 }

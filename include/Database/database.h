@@ -4,8 +4,7 @@
 
 #include "Transaction/transaction.h"
 
-namespace MVM {
-namespace Database {
+namespace MVM::Database {
 class TransactionDatabase
 {
 private:
@@ -17,12 +16,12 @@ public:
     TransactionDatabase(TransactionDatabase const &) = delete;
     void operator=(TransactionDatabase const &) = delete;
 
-    static TransactionDatabase & getInstance() {
+    static TransactionDatabase &getInstance() {
         static TransactionDatabase instance;
         return instance;
     }
 
-    void addTransaction(std::vector<std::shared_ptr<MVM::Transaction::Transaction>> transaction) {
+    void addTransaction(const std::vector<std::shared_ptr<MVM::Transaction::Transaction>> &transaction) {
         transactions.push_back(transaction);
     }
 
@@ -31,10 +30,8 @@ public:
     }
 
     int getTransactionSize() {
-        return transactions.size();
+        return (int)transactions.size();
     }
 };
 
-} // namespace Database
-    
 } // namespace MVM

@@ -70,7 +70,7 @@ class alignas(VL_CACHE_LINE_BYTES) Vmemory VL_NOT_FINAL : public VerilatedModel 
     /// Are there scheduled events to handle?
     bool eventsPending();
     /// Returns time at next time slot. Aborts if !eventsPending()
-    MVM::Type::uint64_t nextTimeSlot();
+    MVM::Type::Data_t nextTimeSlot();
     /// Trace signals in the model; called by application code
     void trace(VerilatedVcdC* tfp, int levels, int options = 0);
     /// Retrieve name of this model instance (as passed to constructor).

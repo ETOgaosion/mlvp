@@ -1,8 +1,10 @@
-#include <string>
-#include <memory>
-
-#include "Database/designPorts.h"
 #include "Database/database.h"
+#include "Channel/channel.h"
+#include "Drivers/driver.h"
+#include "Drivers/driverModel.h"
+#include "Drivers/dutDriver.h"
+#include "Drivers/refDriver.h"
+#include "Drivers/simulatorDriver.h"
 #include "Transaction/transaction.h"
 #include "RefPack/ref.h"
 #include "TestGenerator/generatorHelper.h"
@@ -11,6 +13,7 @@
 using namespace std;
 using namespace MVM::Type;
 using namespace MVM::Database;
+using namespace MVM::Channel;
 using namespace MVM::Spreader;
 using namespace MVM::Driver;
 using namespace MVM::TestGenerator;

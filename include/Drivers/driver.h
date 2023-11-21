@@ -4,14 +4,14 @@
 #include <string>
 #include <memory>
 #include <future>
+#include <utility>
 
 #include "Drivers/driverModel.h"
 #include "Transaction/transaction.h"
 #include "Drivers/dutDriver.h"
 #include "Drivers/refDriver.h"
 
-namespace MVM {
-namespace Driver {
+namespace MVM::Driver {
 class Driver {
 private:
     std::shared_ptr<DriverModel> dutDriver; //!< Actual Type is DutTransDriver
@@ -32,16 +32,16 @@ public:
      * @param inRef Child of RefUnitDriver class
      * @param inRefSimulatorDrivers user defined simulator drivers for ref
      */
-    Driver(std::vector<std::shared_ptr<MVM::Transaction::Transaction>> inTransactions, std::unique_ptr<DriverModel> inDut, std::unique_ptr<DriverModel> inRef, int inDutSimulatorSetIndex, int inRefSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : transactions(inTransactions), dutDriver(std::make_shared<DutTransDriver>(inDut
-    , inDutSimulatorSetIndex, inSimulatorNames)), refDriver(std::make_unique<RefTransDriver>(inRef, inRefSimulatorSetIndex, inSimulatorNames, dutDriver)) {}
+    Driver(std::vector<std::shared_ptr<MVM::Transaction::Transaction>> inTransactions, std::unique_ptr<DriverModel> inDut, std::unique_ptr<DriverModel> inRef, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : transactions(std::move(inTransactions)), dutDriver(std::make_shared<DutTransDriver>(inDut
+    , inSimulatorSetIndex, inSimulatorNames)), refDriver(std::make_unique<RefTransDriver>(inRef, inSimulatorSetIndex, inSimulatorNames)) {}
 
     void sendTransaction(bool toRef) {
         if (toRef) {
-            while (!refDriver->checkTransactionFinish()) { continue; }
+            while (!refDriver->checkTransactionFinish()) { }
             refDriver->setTransaction(transactions[transPtr]);
         }
         else {
-            while (!dutDriver->checkTransactionFinish()) { continue; }
+            while (!dutDriver->checkTransactionFinish()) { }
             dutDriver->setTransaction(transactions[transPtr]);
         }
     }
@@ -50,26 +50,28 @@ public:
         transPtr++;
     }
 
-    int driving(std::shared_ptr<std::string> errorMsgRaw) {
+    int driving(const std::shared_ptr<std::string> &errorMsgRaw) {
         bool dutResult, refResult;
-        for (auto transaction : transactions) {
-            if (USE_THREADS) {
+        if (USE_THREADS) {
+            for (int i = 0; i < transactions.size(); i++) {
                 auto sendDutFuture = std::async(std::launch::async, &MVM::Driver::Driver::sendTransaction, this, false);
                 auto sendRefFuture = std::async(std::launch::async, &MVM::Driver::Driver::sendTransaction, this, true);
                 sendDutFuture.wait();
                 sendRefFuture.wait();
                 incTransPtr();
-                auto dutFuture = std::async(std::launch::async, &MVM::Driver::DriverModel::drivingStep, dutDriver.get());
-                auto refFuture = std::async(std::launch::async, &MVM::Driver::DriverModel::drivingStep, refDriver.get());
+                auto dutFuture = std::async(std::launch::async, &MVM::Driver::DriverModel::drivingStep, dutDriver.get(), i == transactions.size() - 1);
+                auto refFuture = std::async(std::launch::async, &MVM::Driver::DriverModel::drivingStep, refDriver.get(), i == transactions.size() - 1);
                 dutResult = dutFuture.get();
                 refResult = refFuture.get();
             }
-            else {
+        }
+        else {
+            for (int i = 0; i < transactions.size(); i++) {
                 sendTransaction(false);
                 sendTransaction(true);
                 incTransPtr();
-                dutResult = dutDriver->drivingStep();
-                refResult = refDriver->drivingStep();
+                dutResult = dutDriver->drivingStep(i == transactions.size() - 1);
+                refResult = refDriver->drivingStep(i == transactions.size() - 1);
             }
         }
         return -1;
@@ -79,7 +81,4 @@ public:
 };
 
     
-} // namespace Driver
-
-    
-} // namespace MVM
+} // namespace MVM::Driver

@@ -1,57 +1,138 @@
+#include "Channel/channel.h"
+#include "Transaction/transaction.h"
 #include "mvm.h"
-#include "MCVPack/BareDut/Memory/Vmemory.h"
+#include "MCVPack/BareDut/NutshellCache/Vnutshellcache.h"
 
 // ========================= Announcer =========================
 
-class DutMemoryDriver : public DutUnitDriver {
+class DutCacheDriver : public DutUnitDriver {
 private:
-    const unique_ptr<Vmemory> top;
+    const unique_ptr<Vnutshellcache> top;
 
 public:
-    DutMemoryDriver(int inDriverID, string inLogPath, shared_ptr<Transaction> inTransaction) : DutUnitDriver(inDriverID, inLogPath, inTransaction), top(std::make_unique<Vmemory>(contextp.get(), "top")) {
+    DutCacheDriver(int inDriverID, const string& inLogPath) : DutUnitDriver("cache", inDriverID, inLogPath), top(std::make_unique<Vnutshellcache>(contextp.get(), "top")) {
         contextp->debug(0);
-        // [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
+        //!< [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
         contextp->randReset(0);
-        top->clk = 1;
+        top->clock = 1;
         top->trace(tfp.get(), 99);
-        // this should be called after trace
+        //!< this should be called after trace
         tfp->open((logPath + "/memory.vcd").c_str());
+        ChannelRegistrar::getInstance().registerChannel("cacheDut", "cacheRef", false);
     }
 
-    /* just execute one test */
-    bool drivingStep() override {
+    /**
+     * @brief just execute one cycle
+     */
+    bool drivingStep(bool isLast) override {
         if(!contextp->gotFinish()) {
             contextp->timeInc(1);
 
-            // assign input signals
-            top->clk = !top->clk;
-            top->reset = transaction->getInSignal()[testPtr][0];
-            top->addr = transaction->getInSignal()[testPtr][1];
-            top->wr_en = transaction->getInSignal()[testPtr][2];
-            top->rd_en = transaction->getInSignal()[testPtr][3];
-            top->wdata = transaction->getInSignal()[testPtr][4];
+            //!< assign input signals
+            //!< c_if
+            top->clock = !top->clock;
+            top->reset = transaction->getInSignal("reset");
+            top->io_flush = transaction->getInSignal("io_flush");
 
-            // evaluate model
+            //!< in_if
+            top->io_in_req_valid = transaction->getInSignal("io_in_req_valid");
+            top->io_in_req_bits_addr = transaction->getInSignal("io_in_req_bits_addr");
+            top->io_in_req_bits_size = transaction->getInSignal("io_in_req_bits_size");
+            top->io_in_req_bits_cmd = transaction->getInSignal("io_in_req_bits_cmd");
+            top->io_in_req_bits_wmask = transaction->getInSignal("io_in_req_bits_wmask");
+            top->io_in_req_bits_wdata = transaction->getInSignal("io_in_req_bits_wdata");
+            top->io_in_req_bits_user = transaction->getInSignal("io_in_req_bits_user");
+
+            //!< mem_if
+            //!< you'd better add a check to Channel, or directly get data if you can promise that the data is ready
+            if (!ChannelRegistrar::getInstance().hasChannelData("memory", "cache", false, "io_in_resp_ready")) {
+                throw runtime_error("io_in_resp_ready is not ready");
+            }
+            top->io_out_mem_req_ready = ChannelRegistrar::getInstance().getData("memory", "cache", false, "io_out_mem_req_ready");
+
+            if (transaction->checkResponseExistence("memroy", "cache", 0, false)) {
+                auto resp = transaction->getResponse("memroy", "cache", 0, false);
+                top->io_out_mem_resp_valid = resp.outSignal["io_out_mem_resp_valid"];
+                top->io_out_mem_resp_bits_cmd = resp.outSignal["io_out_mem_resp_bits_cmd"];
+                top->io_out_mem_resp_bits_rdata = resp.outSignal["io_out_mem_resp_bits_rdata"];
+            }
+
+            //!< coh_if
+            top->io_out_coh_req_valid = 0;
+            top->io_out_coh_req_bits_addr = 0;
+            top->io_out_coh_req_bits_size = 0;
+            top->io_out_coh_req_bits_cmd = 0;
+            top->io_out_coh_req_bits_wmask = 0;
+            top->io_out_coh_req_bits_wdata = 0;
+            top->io_out_coh_resp_ready = 0;
+
+            //!< mmio_if
+            if (!ChannelRegistrar::getInstance().hasChannelData("mmio", "cache", false, "io_mmio_req_ready")) {
+                throw runtime_error("io_mmio_req_ready is not ready");
+            }
+            top->io_mmio_req_ready = ChannelRegistrar::getInstance().getData("mmio", "cache", false, "io_mmio_req_ready");
+
+            if (transaction->checkResponseExistence("mmio", "cache", 0, false)) {
+                auto resp = transaction->getResponse("mmio", "cache", 0, false);
+                top->io_mmio_resp_valid = resp.outSignal["io_mmio_resp_valid"];
+                top->io_mmio_resp_bits_cmd = resp.outSignal["io_mmio_resp_bits_cmd"];
+                top->io_mmio_resp_bits_rdata = resp.outSignal["io_mmio_resp_bits_rdata"];
+            }
+
+            //!< evaluate model
             top->eval();
-            // generate trace
+            //!< generate trace
             tfp->dump(contextp->time());
 
-            // assign output signals
-            transaction->setDutOutSignal(testPtr, {top->rdata});
-            
-            testPtr++;
+            //!< assign output signals
+            //!< c_if
+            transaction->setOutSignal("io_empty", top->io_empty, false);
 
-            if (testPtr == transaction->getTestsSize() - 1) {
-                // don't know why tfp dump lose last cycle
+            //!< in_if
+            transaction->setOutSignal("io_in_req_ready", top->io_in_req_ready, false);
+            if (top->io_in_resp_ready && top->io_in_resp_valid) {
+                transaction->setOutSignal("io_in_resp_valid", top->io_in_resp_valid, false);
+                transaction->setOutSignal("io_in_resp_bits_cmd", top->io_in_resp_bits_cmd, false);
+                transaction->setOutSignal("io_in_resp_bits_rdata", top->io_in_resp_bits_rdata, false);
+                transaction->setOutSignal("io_in_resp_bits_user", top->io_in_resp_bits_user, false);
+                transaction->transactionItems.setDone(false);
+            }
+
+            //!< mem_if
+            if (top->io_out_mem_req_ready && top->io_out_mem_req_valid) {
+                transaction->setOutSignal("io_out_mem_req_valid", top->io_out_mem_req_valid, false);
+                transaction->setOutSignal("io_out_mem_req_bits_addr", top->io_out_mem_req_bits_addr, false);
+                transaction->setOutSignal("io_out_mem_req_bits_size", top->io_out_mem_req_bits_size, false);
+                transaction->setOutSignal("io_out_mem_req_bits_cmd", top->io_out_mem_req_bits_cmd, false);
+                transaction->setOutSignal("io_out_mem_req_bits_wmask", top->io_out_mem_req_bits_wmask, false);
+                transaction->setOutSignal("io_out_mem_req_bits_wdata", top->io_out_mem_req_bits_wdata, false);
+                transaction->transactionItems.setDone(false);
+            }
+
+            //!< mmio_if
+            if (top->io_mmio_req_ready && top->io_mmio_req_valid) {
+                transaction->setOutSignal("io_mmio_req_valid", top->io_mmio_req_valid, false);
+                transaction->setOutSignal("io_mmio_req_bits_addr", top->io_mmio_req_bits_addr, false);
+                transaction->setOutSignal("io_mmio_req_bits_size", top->io_mmio_req_bits_size, false);
+                transaction->setOutSignal("io_mmio_req_bits_cmd", top->io_mmio_req_bits_cmd, false);
+                transaction->setOutSignal("io_mmio_req_bits_wmask", top->io_mmio_req_bits_wmask, false);
+                transaction->setOutSignal("io_mmio_req_bits_wdata", top->io_mmio_req_bits_wdata, false);
+                transaction->transactionItems.setDone(false);
+            }
+
+            ChannelRegistrar::getInstance().setData("cacheDut", "cacheRef", false, "victimWaymask", top->victimWaymask);
+
+            if (isLast) {
+                //!< don't know why tfp dump lose last cycle
                 contextp->timeInc(1);
-                top->clk = !top->clk;
+                top->clock = !top->clock;
                 top->eval();
                 tfp->dump(contextp->time());
                 contextp->timeInc(1);
-                top->clk = !top->clk;
+                top->clock = !top->clock;
                 top->eval();
                 tfp->dump(contextp->time());
-                // output coverage
+                //!< output coverage
                 Verilated::mkdir(logPath.c_str());
                 contextp->coveragep()->write((logPath + "/coverage.dat").c_str());
                 tfp->close();
@@ -59,7 +140,7 @@ public:
             }
             return true;
         }
-        // reach test end
+        //!< reach test end
         return false;
     }
 };
@@ -71,12 +152,12 @@ private:
     unsigned short mem[4];
 
 public:
-    uint64 reset;
-    uint64 addr;
-    uint64 wr_en;
-    uint64 rd_en;
-    uint64 wdata;
-    uint64 rdata;
+    Data reset;
+    Data addr;
+    Data wr_en;
+    Data rd_en;
+    Data wdata;
+    Data rdata;
 
     RefMemory() {
         memset(mem, 0, sizeof(mem));   
@@ -109,29 +190,17 @@ public:
     RefMemoryDriver(shared_ptr<Transaction> inTransaction) : RefUnitDriver(inTransaction), top(make_unique<RefMemory>()) {}
 
     /* just execute one test */
-    bool drivingStep() override {
-        // assign input signals
-        top->reset = transaction->getInSignal()[testPtr][0];
-        top->addr = transaction->getInSignal()[testPtr][1];
-        top->wr_en = transaction->getInSignal()[testPtr][2];
-        top->rd_en = transaction->getInSignal()[testPtr][3];
-        top->wdata = transaction->getInSignal()[testPtr][4];
-
-        // evaluate model
-        top->eval();
-
-        // assign output signals
-        transaction->setRefOutSignal(testPtr, {top->rdata});
+    bool drivingStep(bool isLast) override {
         return true;
     }
 };
 
 int main() {
-    // Generate Tests
+    //!< Generate Tests
     shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
 
     PortSpecGeneratorModel portSpecGeneratorModel(userTests);
-    for (uint64 i = 1; i < 5; i++) {
+    for (Data i = 1; i < 5; i++) {
         portSpecGeneratorModel.setSize(6);
         portSpecGeneratorModel.addPortTestSpec("reset", 0, 1, GeneratorType::DIRECT_INPUT, {1});
         portSpecGeneratorModel.addPortTestSpec("addr" , 0, 5, GeneratorType::DIRECT_INPUT, {i});
@@ -142,7 +211,7 @@ int main() {
     }
 
 
-    // Execution
+    //!< Execution
     TransactionLauncher::setupTransaction(1000, userTests->getTests());
     Spreader<DutMemoryDriver, RefMemoryDriver, VerilatorReporter> spreader("log/memory", "report/memory");
     spreader.execute();

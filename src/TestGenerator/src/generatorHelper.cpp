@@ -1,6 +1,7 @@
 #include "TestGenerator/generatorHelper.h"
 
 #include <iostream>
+#include <utility>
 
 #include "Database/database.h"
 
@@ -10,7 +11,7 @@ using namespace MVM::TestGenerator;
 using namespace MVM::Library;
 using namespace MVM::Database;
 
-void GeneratedUserTest::addSerialTest(SerialTest testSet) {
+void GeneratedUserTest::addSerialTest(const SerialTest &testSet) {
     userTest->push_back(testSet);
 }
 
@@ -18,14 +19,14 @@ void GeneratedUserTest::addSerialTest() {
     userTest->push_back(SerialTest());
 }
 
-void GeneratedUserTest::addPortTest(string portName, TestData test) {
-    userTest->back()[portName] = test;
+void GeneratedUserTest::addPortTest(const string &portName, TestData test) {
+    userTest->back()[portName] = std::move(test);
 }
 
 bool PortSpecGeneratorModel::setSize(int inSize) {
     if (size) {
         if (MVM::Library::bugHandleDegree == MVM::Library::Degree::HIGH)
-            throw std::runtime_error("PortSpecGeneratorModel > Size is already set");
+            throw runtime_error("PortSpecGeneratorModel > Size is already set");
         else {
             return false;
         }
@@ -33,7 +34,7 @@ bool PortSpecGeneratorModel::setSize(int inSize) {
     else {
         if (inSize <= 0) {
             if (MVM::Library::bugHandleDegree == MVM::Library::Degree::HIGH)
-                throw std::runtime_error("PortSpecGeneratorModel > Size is not valid");
+                throw runtime_error("PortSpecGeneratorModel > Size is not valid");
             else {
                 return false;
             }
@@ -43,7 +44,7 @@ bool PortSpecGeneratorModel::setSize(int inSize) {
     }
 }
 
-bool PortSpecGeneratorModel::addPortTestSpecDefault(string inPortName, GeneratorType inGeneratorType, uint64 inValue) {
+bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, GeneratorType inGeneratorType, Data inValue) {
     if (!size) {
         throw runtime_error("PortSpecGeneratorModel > Size is not set");
     }
@@ -58,10 +59,10 @@ bool PortSpecGeneratorModel::addPortTestSpecDefault(string inPortName, Generator
     else {
         portTestSpecDefaults[inPortName] = PortTestSpecDefault(inPortName, inGeneratorType, inValue);
     }
-
+    return true;
 }
 
-bool PortSpecGeneratorModel::addPortTestSpecDefault(string inPortName, GeneratorType inGeneratorType, uint64 inValue, function<uint64(uint64)> inPostHandler) {
+bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, GeneratorType inGeneratorType, Data inValue, function<Data(Data)> inPostHandler) {
     if (!size) {
         throw runtime_error("PortSpecGeneratorModel > Size is not set");
     }
@@ -74,15 +75,16 @@ bool PortSpecGeneratorModel::addPortTestSpecDefault(string inPortName, Generator
         }
     }
     else {
-        portTestSpecDefaults[inPortName] = PortTestSpecDefault(inPortName, inGeneratorType, inValue, inPostHandler);
+        portTestSpecDefaults[inPortName] = PortTestSpecDefault(inPortName, inGeneratorType, inValue, std::move(inPostHandler));
     }
+    return true;
 }
 
 bool PortSpecGeneratorModel::checkPortSpec(PortTestSpec &portTestSpec) {
     return checkPortSpec(portTestSpec.portName, portTestSpec.startIndex, portTestSpec.endIndex, portTestSpec.generatorType);
 }
 
-bool PortSpecGeneratorModel::checkPortSpec(string portName, int startIndex, int &endIndex, GeneratorType generatorType) {
+bool PortSpecGeneratorModel::checkPortSpec(const string &portName, int startIndex, int &endIndex, GeneratorType generatorType) {
     if (portTestSpecs[portName].back().endIndex > size - 1) {
         if (bugHandleDegree == Degree::HIGH) {
             throw runtime_error("[PortSpecGeneratorModel] > PortSpec is not valid");
@@ -92,19 +94,19 @@ bool PortSpecGeneratorModel::checkPortSpec(string portName, int startIndex, int 
         }
         return false;
     }
-    else if (portTestSpecs[portName].back().endIndex < -size) {
-        if (bugHandleDegree == Degree::HIGH) {
-            throw runtime_error("[PortSpecGeneratorModel] > PortSpec is not valid");
-        }
-        else {
-            cout << "[Error] PortSpecGeneratorModel > PortSpec is not valid" << endl;
-        }
-        return false;
-    }
     else if (portTestSpecs[portName].back().endIndex < 0) {
+        if (portTestSpecs[portName].back().endIndex < -size) {
+            if (bugHandleDegree == Degree::HIGH) {
+                throw runtime_error("[PortSpecGeneratorModel] > PortSpec is not valid");
+            }
+            else {
+                cout << "[Error] PortSpecGeneratorModel > PortSpec is not valid" << endl;
+            }
+            return false;
+        }
         endIndex = size + endIndex;
     }
-    if (portTestSpecs.contains(portName) && !portTestSpecs[portName].empty() && portTestSpecs[portName].back().endIndex >= startIndex) {
+    if (portTestSpecs.contains(portName) && !portTestSpecs[portName].empty() &&portTestSpecs[portName].back().endIndex >= startIndex) {
         if (bugHandleDegree == Degree::HIGH) {
             throw runtime_error("PortSpecGeneratorModel > PortSpec is not valid");
         }
@@ -117,7 +119,7 @@ bool PortSpecGeneratorModel::checkPortSpec(string portName, int startIndex, int 
 }
 
 bool PortSpecGeneratorModel::checkAllPortSpec() {
-    for (auto & portSpec : portTestSpecs) {
+    for (auto &portSpec : portTestSpecs) {
         if (portSpec.second.back().endIndex > size - 1) {
             throw runtime_error("PortSpecGeneratorModel > PortSpec is not valid");
             return false;
@@ -126,7 +128,7 @@ bool PortSpecGeneratorModel::checkAllPortSpec() {
     return true;
 }
 
-bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, TestData value) {
+bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const TestData &value) {
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
@@ -134,7 +136,7 @@ bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, in
         portTestSpecs[portName].back().value = value;
     }
     else {
-        portTestSpecs.emplace(make_pair(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType))));
+        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType)));
         portTestSpecs[portName].back().value = value;
     }
     return res;
@@ -146,7 +148,7 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
     }
     checkAllPortSpec();
     SerialTest SerialTest(size);
-    for (auto & portSpec : portTestSpecDefaults) {
+    for (auto &portSpec : portTestSpecDefaults) {
         switch (portSpec.second.generatorType)
         {
         case GeneratorType::DIRECT_INPUT:
@@ -156,7 +158,7 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
             break;
         case GeneratorType::RANDOM_GENERATOR:
         {
-            uniform_int_distribution<uint64> dist(0, portSpec.second.value);
+            uniform_int_distribution<Data> dist(0, portSpec.second.value);
             for (int i = 0; i < size; i++) {
                 SerialTest[portSpec.second.portName][i] = portSpec.second.postHandler(dist(rng));
             }
@@ -164,8 +166,8 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
             break;
         }
     }
-    for (auto & portSpec : portTestSpecs) {
-        for (auto & spec : portSpec.second) {
+    for (auto &portSpec : portTestSpecs) {
+        for (auto &spec : portSpec.second) {
             switch (spec.generatorType)
             {
             case GeneratorType::DIRECT_INPUT:
@@ -185,7 +187,7 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
                 break;
             case GeneratorType::RANDOM_GENERATOR:
             {
-                uniform_int_distribution<uint64> dist(0, spec.value[0]);
+                uniform_int_distribution<Data> dist(0, spec.value[0]);
                 for (int i = spec.startIndex; i <= spec.endIndex; i++) {
                     SerialTest[spec.portName][i] = spec.postHandler(dist(rng));
                 }

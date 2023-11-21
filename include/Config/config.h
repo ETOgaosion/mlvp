@@ -1,26 +1,24 @@
 #pragma once
 
 #include <string>
+#include <utility>
 
-namespace MVM {
-namespace Config {
+namespace MVM::Config {
 
 class Config
 {
 private:
     /* data */
     std::string programPath;
+    std::string configPath;
     
 
 public:
     Config() = delete;
     
 
-    Config(std::string configPath);
+    explicit Config(std::string inConfigPath) : configPath(std::move(inConfigPath)) {}
 };
 
     
-} // namespace Config
-
-    
-} // namespace MVM
+} // namespace MVM::Config

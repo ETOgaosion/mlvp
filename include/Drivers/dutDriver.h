@@ -2,16 +2,19 @@
 
 #include <string>
 #include <memory>
+#include <utility>
 #include <vector>
 #include <unordered_map>
 #include <string>
 #include <filesystem>
+#include <verilated.h>
+#include "verilated_vcd_c.h"
 
 #include "Drivers/driverModel.h"
 #include "Transaction/transaction.h"
+#include "Drivers/simulatorDriver.h"
 
-namespace MVM {
-namespace Driver {
+namespace MVM::Driver {
 class DutUnitDriver : public MVM::Driver::DriverModel {
 protected:
     const std::unique_ptr<VerilatedContext> contextp;
@@ -20,18 +23,18 @@ protected:
     
 public:
     DutUnitDriver() = delete;
-    virtual ~DutUnitDriver() = default;
+    ~DutUnitDriver() override = default;
 
-    DutUnitDriver(std::string inUnitName, int inDriverID, std::string inLogPath) : DriverModel(inUnitName), logPath(inLogPath + "/Driver" + std::to_string(inDriverID)), contextp(std::make_unique<VerilatedContext>()), tfp(std::make_unique<VerilatedVcdC>()) {
+    DutUnitDriver(std::string inUnitName, int inDriverID, const std::string &inLogPath) : DriverModel(std::move(inUnitName)), logPath(inLogPath + "/Driver" + std::to_string(inDriverID)), contextp(std::make_unique<VerilatedContext>()), tfp(std::make_unique<VerilatedVcdC>()) {
         std::filesystem::create_directories(logPath);
         Verilated::traceEverOn(true);
         contextp->traceEverOn(true);
     }
 
-    // MVM::Type::uint64 syncSignal(std::string portName) override
+    //!< MVM::Type::Data syncSignal(std::string portName) override
 
     /**
-     * bool drivingStep() override
+     * bool drivingStep(bool isLast) override
      * @brief Driving step for simulator
      * @details just execute one test
      *          no implementation will also be a pure function
@@ -48,7 +51,7 @@ private:
 
 public:
     DutTransDriver() = delete;
-    ~DutTransDriver() = default;
+    ~DutTransDriver() override = default;
 
     /**
      * @brief Construct a new Dut Trans Driver object
@@ -56,19 +59,15 @@ public:
      * @param inDut class inherited from DutUnitDriver
      * @param inSimulatorDrivers must be new object, different with simulatorDrivers in RefUnitDriver
      */
-    DutTransDriver(std::unique_ptr<DriverModel> inDut, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : dut(std::move(inDut)), simulatorSetIndex(inSimulatorSetIndex), simulatorNames(inSimulatorNames) {}
+    DutTransDriver(std::unique_ptr<DriverModel> inDut, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : dut(std::move(inDut)), simulatorSetIndex(inSimulatorSetIndex), simulatorNames(std::move(inSimulatorNames)) {}
 
     bool setTransaction(std::shared_ptr<MVM::Transaction::Transaction> inTransaction) override;
 
-    MVM::Type::uint64 syncSignal(std::string portName) override {
-        return dut->syncSignal(portName);
-    }
-
-    bool drivingStep() override {
+    bool drivingStep(bool isLast) override {
         while (!transaction->checkTransactionFinish()) {
-            dut->drivingStep();
-            for (auto simulatorName : simulatorNames) {
-                SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, false, simulatorName)->drivingStep();
+            dut->drivingStep(isLast);
+            for (const auto &simulatorName : simulatorNames) {
+                SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, false, simulatorName)->drivingStep(isLast);
             }
         }
         return true;
@@ -76,8 +75,4 @@ public:
 
 };
 
-    
-} // namespace Driver
-
-
-} // namespace MVM
+} // namespace MVM::Driver

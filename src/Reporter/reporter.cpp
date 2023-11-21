@@ -3,7 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <stdlib.h>
+#include <cstdlib>
 #include <filesystem>
 
 #include "Database/database.h"
@@ -23,6 +23,6 @@ void VerilatorReporter::makeReport() {
     }
     int status = system(command.c_str());
     if (status != 0) {
-        throw std::runtime_error("[Error] Reporter > verilator coverage failed");
+        throw runtime_error("[Error] Reporter > verilator coverage failed");
     }
 }
