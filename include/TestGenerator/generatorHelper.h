@@ -101,7 +101,7 @@ public:
      *      RANDOM_GENERATOR = 1
      *  };
      * ```
-     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as **range max + 1 in random generator**
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as <b>range max + 1 in random generator</b>
      * @return true pass check
      * @return false not pass check
      */
@@ -118,7 +118,7 @@ public:
      *      RANDOM_GENERATOR = 1
      *  };
      * ```
-     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as **range max + 1 in random generator**
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as <b>range max + 1 in random generator</b>
      * @param inPostHandler postHandler function of value
      * @return true pass check
      * @return false not pass check
@@ -160,11 +160,11 @@ public:
      * 1. index must be in order
      * 2. not have to cover whole range, use default value for the rest flexibly
      * 
-     * @param portName transaction port name, **take effect in [startIndex, endIndex]**
+     * @param portName transaction port name, <b>take effect in [startIndex, endIndex]</b>
      * @param startIndex from which index in serialTest
-     * @param endIndex to which index in serialTest, **include**
+     * @param endIndex to which index in serialTest, <b>include</b>
      * @param generatorType GeneratorType
-     * @param value if generator type is DIRECT_INPUT, this value will be used as default value, else the first element will be used as **range max + 1 in random generator**
+     * @param value if generator type is DIRECT_INPUT, this value will be used as default value, else the first element will be used as <b>range max + 1 in random generator</b>
      * @return true 
      * @return false 
      */

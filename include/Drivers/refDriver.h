@@ -33,7 +33,7 @@ public:
     
     /**
      * bool drivingStep(bool isLast) override
-     * @brief Driving step for simulator, **Notice that ref not have to drive by cycle, you can use simple transaction Handler**
+     * @brief Driving step for simulator, <b>Notice that ref not have to drive by cycle, you can use simple transaction Handler</b>
      * @details just execute one test
      *          no implementation will also be a pure function
      *          [announcer]|[verifier] must implement
