@@ -1,3 +1,14 @@
+/**
+ * @file dutDriver.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include <string>
@@ -11,11 +22,13 @@
 #include "verilated_vcd_c.h"
 
 #include "Drivers/driverModel.h"
+#include "Drivers/transDriverModel.h"
 #include "Transaction/transaction.h"
 #include "Drivers/simulatorDriver.h"
+#include "Channel/channel.h"
 
-namespace MVM::Driver {
-class DutUnitDriver : public MVM::Driver::DriverModel {
+namespace MLVP::Driver {
+class DutUnitDriver : public MLVP::Driver::DriverModel {
 protected:
     const std::unique_ptr<VerilatedContext> contextp;
     const std::unique_ptr<VerilatedVcdC> tfp;
@@ -29,9 +42,8 @@ public:
         std::filesystem::create_directories(logPath);
         Verilated::traceEverOn(true);
         contextp->traceEverOn(true);
+        channels.clear();
     }
-
-    //!< MVM::Type::Data syncSignal(std::string portName) override
 
     /**
      * bool drivingStep(bool isLast) override
@@ -43,36 +55,12 @@ public:
      */
 };
 
-class DutTransDriver : public DriverModel {
-private:
-    std::unique_ptr<DriverModel> dut; //!< Actually a DutUnitDriver Child Implemented by user
-    int simulatorSetIndex;
-    std::vector<std::string> simulatorNames;
-
+class DutTransDriver : public TransDriver {
 public:
     DutTransDriver() = delete;
     ~DutTransDriver() override = default;
-
-    /**
-     * @brief Construct a new Dut Trans Driver object
-     * 
-     * @param inDut class inherited from DutUnitDriver
-     * @param inSimulatorDrivers must be new object, different with simulatorDrivers in RefUnitDriver
-     */
-    DutTransDriver(std::unique_ptr<DriverModel> inDut, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : dut(std::move(inDut)), simulatorSetIndex(inSimulatorSetIndex), simulatorNames(std::move(inSimulatorNames)) {}
-
-    bool setTransaction(std::shared_ptr<MVM::Transaction::Transaction> inTransaction) override;
-
-    bool drivingStep(bool isLast) override {
-        while (!transaction->checkTransactionFinish()) {
-            dut->drivingStep(isLast);
-            for (const auto &simulatorName : simulatorNames) {
-                SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, false, simulatorName)->drivingStep(isLast);
-            }
-        }
-        return true;
-    }
+    DutTransDriver(std::unique_ptr<DriverModel> in, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : TransDriver(std::move(in), inSimulatorSetIndex, std::move(inSimulatorNames)) {}
 
 };
 
-} // namespace MVM::Driver
+} // namespace MLVP::Driver

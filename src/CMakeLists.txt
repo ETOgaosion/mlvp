@@ -12,7 +12,7 @@ add_subdirectory(TestGenerator)
 
 aux_source_directory(. SRC)
 
-add_executable(mvm 
+add_executable(mlvp 
 $<TARGET_OBJECTS:Config>
 $<TARGET_OBJECTS:Database>
 $<TARGET_OBJECTS:Transaction>
@@ -26,7 +26,7 @@ $<TARGET_OBJECTS:TestGenerator>
 ${SRC}
 )
 
-add_library(mvm-lib SHARED 
+add_library(mlvp-lib SHARED 
 $<TARGET_OBJECTS:Config>
 $<TARGET_OBJECTS:Database>
 $<TARGET_OBJECTS:Transaction>
@@ -40,7 +40,7 @@ $<TARGET_OBJECTS:TestGenerator>
 )
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
-    verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/design/NutshellCache/nutshellcache.v TOP_MODULE Cache COVERAGE OPT_SLOW TRACE)
+    verilate(mlvp SOURCES ${PROJECT_SOURCE_DIR}/design/NutshellCache/nutshellcache.v TOP_MODULE Cache COVERAGE OPT_SLOW TRACE)
 else ()
-    verilate(mvm SOURCES ${PROJECT_SOURCE_DIR}/design/NutshellCache/nutshellcache.v TOP_MODULE Cache COVERAGE OPT_FAST TRACE)
+    verilate(mlvp SOURCES ${PROJECT_SOURCE_DIR}/design/NutshellCache/nutshellcache.v TOP_MODULE Cache COVERAGE OPT_FAST TRACE)
 endif ()

@@ -2,7 +2,7 @@
 
 # !!! all scripts executed from project root: ./scripts/gen_c.sh --design-module Memory --design-file  memory.sv 
 
-# FILEPATH: /home/gzy/projects/mvm/scripts/gen_c.sh
+# FILEPATH: /home/gzy/projects/mlvp/scripts/gen_c.sh
 
 if [ "$#" -lt 4 ]; then
     echo "Usage: --design-module <design_module> --design-file <design_file> [--debug <debug>]"

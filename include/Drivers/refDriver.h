@@ -1,3 +1,14 @@
+/**
+ * @file refDriver.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include <string>
@@ -5,24 +16,24 @@
 #include <utility>
 #include <vector>
 #include <memory>
+#include <future>
 
 #include "Drivers/driverModel.h"
+#include "Drivers/transDriverModel.h"
 #include "Transaction/transaction.h"
 #include "Drivers/dutDriver.h"
 #include "Drivers/simulatorDriver.h"
 
-namespace MVM::Driver {
-class RefUnitDriver : public MVM::Driver::DriverModel {
+namespace MLVP::Driver {
+class RefUnitDriver : public MLVP::Driver::DriverModel {
 public:
     RefUnitDriver() = delete;
     ~RefUnitDriver() override = default;
     explicit RefUnitDriver(std::string inUnitName) : DriverModel(std::move(inUnitName)) {}
-
-    //!< MVM::Type::Data syncSignal(std::string portName) override
     
     /**
      * bool drivingStep(bool isLast) override
-     * @brief Driving step for simulator
+     * @brief Driving step for simulator, **Notice that ref not have to drive by cycle, you can use simple transaction Handler**
      * @details just execute one test
      *          no implementation will also be a pure function
      *          [announcer]|[verifier] must implement
@@ -30,30 +41,12 @@ public:
      */
 };
 
-class RefTransDriver : public DriverModel {
-private:
-    std::unique_ptr<DriverModel> ref; //!< Actually a RefUnitDriver Child Implemented by user
-    int simulatorSetIndex;
-    std::vector<std::string> simulatorNames;
-
+class RefTransDriver : public TransDriver {
 public:
     RefTransDriver() = delete;
     ~RefTransDriver() override = default;
-    RefTransDriver(std::unique_ptr<DriverModel> &inRef, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : ref(std::move(inRef)), simulatorSetIndex(inSimulatorSetIndex), simulatorNames(std::move(inSimulatorNames)) {}
-
-    bool setTransaction(std::shared_ptr<MVM::Transaction::Transaction> inTransaction) override;
-
-    bool drivingStep(bool isLast) override {
-        while (!transaction->checkTransactionFinish()) {
-            ref->drivingStep(isLast);
-            for (const auto &simulatorName : simulatorNames) {
-                SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, true, simulatorName)->drivingStep(isLast);
-            }
-        }
-        return true;
-    }
-
+    RefTransDriver(std::unique_ptr<DriverModel> in, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : TransDriver(std::move(in), inSimulatorSetIndex, std::move(inSimulatorNames)) {}
 };
 
 
-} // namespace MVM
+} // namespace MLVP

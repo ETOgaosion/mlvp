@@ -1,3 +1,14 @@
+/**
+ * @file reporter.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include <memory>
@@ -6,7 +17,7 @@
 
 #include "Transaction/transaction.h"
 
-namespace MVM::Reporter {
+namespace MLVP::Reporter {
 class Reporter {
 protected:
     std::string logPath;
@@ -33,4 +44,4 @@ public:
 };
 
 
-} // namespace MVM
+} // namespace MLVP

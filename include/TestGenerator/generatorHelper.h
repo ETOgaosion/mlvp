@@ -1,3 +1,14 @@
+/**
+ * @file generatorHelper.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include <utility>
@@ -12,22 +23,22 @@
 #include "Library/error.h"
 #include "Library/types.h"
 
-namespace MVM::TestGenerator {
+namespace MLVP::TestGenerator {
 
 class GeneratedUserTest {
 private:
-    std::shared_ptr<MVM::Type::SerialTestSet> userTest;
+    std::shared_ptr<MLVP::Type::SerialTestSet> userTest;
     std::mutex userTestMutex;
 
 public:
-    GeneratedUserTest() : userTest(std::make_unique<MVM::Type::SerialTestSet>()) {}
+    GeneratedUserTest() : userTest(std::make_unique<MLVP::Type::SerialTestSet>()) {}
     ~GeneratedUserTest() = default;
 
-    void addSerialTest(const MVM::Type::SerialTest &testSet);
+    void addSerialTest(const MLVP::Type::SerialTest &testSet);
     void addSerialTest();
-    void addPortTest(const std::string &portName, MVM::Type::TestData test);
+    void addPortTest(const std::string &portName, MLVP::Type::SerialData test);
 
-    std::shared_ptr<MVM::Type::SerialTestSet> &getTests() {
+    std::shared_ptr<MLVP::Type::SerialTestSet> &getTests() {
         return userTest;
     }
 
@@ -42,12 +53,12 @@ enum class GeneratorType {
 struct PortTestSpecDefault {
     std::string portName;
     GeneratorType generatorType;
-    MVM::Type::Data value;
-    std::function<MVM::Type::Data(MVM::Type::Data)> postHandler;
+    MLVP::Type::Data value;
+    std::function<MLVP::Type::Data(MLVP::Type::Data)> postHandler;
 
     PortTestSpecDefault() = delete;
-    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MVM::Type::Data inValue) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue) { postHandler = [](MVM::Type::Data in) { return in; }; }
-    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MVM::Type::Data inValue, std::function<MVM::Type::Data(MVM::Type::Data)> inPostHandler) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue), postHandler(std::move(inPostHandler)) {}
+    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue) { postHandler = [](MLVP::Type::Data in) { return in; }; }
+    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue, std::function<MLVP::Type::Data(MLVP::Type::Data)> inPostHandler) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue), postHandler(std::move(inPostHandler)) {}
 };
 
 struct PortTestSpec {
@@ -55,12 +66,12 @@ struct PortTestSpec {
     GeneratorType generatorType;
     int startIndex;
     int endIndex;
-    std::vector<MVM::Type::Data> value;
-    std::function<MVM::Type::Data(MVM::Type::Data)> postHandler;
+    std::vector<MLVP::Type::Data> value;
+    std::function<MLVP::Type::Data(MLVP::Type::Data)> postHandler;
 
     PortTestSpec() = delete;
-    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType) { postHandler = [](MVM::Type::Data in) { return in; }; }
-    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, std::function<MVM::Type::Data(MVM::Type::Data)> inPostHandler) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), postHandler(std::move(inPostHandler)) {}
+    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType) { postHandler = [](MLVP::Type::Data in) { return in; }; }
+    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, std::function<MLVP::Type::Data(MLVP::Type::Data)> inPostHandler) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), postHandler(std::move(inPostHandler)) {}
     ~PortTestSpec() = default;
 };
 
@@ -94,7 +105,7 @@ public:
      * @return true pass check
      * @return false not pass check
      */
-    bool addPortTestSpecDefault(const std::string &inPortName, GeneratorType inGeneratorType, MVM::Type::Data inValue);
+    bool addPortTestSpecDefault(const std::string &inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue);
 
     /**
      * @brief generate default spec for transaction port
@@ -112,7 +123,7 @@ public:
      * @return true pass check
      * @return false not pass check
      */
-    bool addPortTestSpecDefault(const std::string &inPortName, GeneratorType inGeneratorType, MVM::Type::Data inValue, std::function<MVM::Type::Data(MVM::Type::Data)> inPostHandler);
+    bool addPortTestSpecDefault(const std::string &inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue, std::function<MLVP::Type::Data(MLVP::Type::Data)> inPostHandler);
 
     /**
      * @brief Check PortTestSpec validity
@@ -157,7 +168,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MVM::Type::TestData &value);
+    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MLVP::Type::SerialData &value);
 
     /**
      * @brief Generate serial test according to the spec
@@ -174,4 +185,4 @@ public:
 
 };
 
-} // namespace MVM::TestGenerator
+} // namespace MLVP::TestGenerator

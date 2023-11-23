@@ -1,16 +1,51 @@
+/**
+ * @file main.cpp
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
+/**
+ * @mainpage MLVP Documentation
+ *
+ * **MLVP** is a **M**ulti-**L**anguage **V**erification **P**latform, which is a framework for multi-language verification, coding in C++
+ *
+ * @section intro_sec Introduction
+ *
+ * Documentation is in the [official documnetation website](https://mlvp-doc.readthedocs.io/zh-cn/latest/)
+ *
+ * @section arch_sec Architecture
+ *
+ * @image html MVM_BareDut.png
+ * 
+ */
+
 #include "Channel/channel.h"
+#include "Drivers/driver.h"
+#include "Drivers/driverModel.h"
+#include "Drivers/refDriver.h"
+#include "Library/types.h"
+#include "RefPack/ref.h"
 #include "Transaction/transaction.h"
-#include "mvm.h"
+#include "mlvp.h"
 #include "MCVPack/BareDut/NutshellCache/Vnutshellcache.h"
+#include <cassert>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
-// ========================= Announcer =========================
-
+// ========================= DutUnitDriver =========================
 class DutCacheDriver : public DutUnitDriver {
 private:
     const unique_ptr<Vnutshellcache> top;
 
 public:
-    DutCacheDriver(int inDriverID, const string& inLogPath) : DutUnitDriver("cache", inDriverID, inLogPath), top(std::make_unique<Vnutshellcache>(contextp.get(), "top")) {
+    DutCacheDriver(int inDriverID, const string& inLogPath) : DutUnitDriver("cacheDut", inDriverID, inLogPath), top(make_unique<Vnutshellcache>(contextp.get(), "top")) {
         contextp->debug(0);
         //!< [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
         contextp->randReset(0);
@@ -18,7 +53,6 @@ public:
         top->trace(tfp.get(), 99);
         //!< this should be called after trace
         tfp->open((logPath + "/memory.vcd").c_str());
-        ChannelRegistrar::getInstance().registerChannel("cacheDut", "cacheRef", false);
     }
 
     /**
@@ -26,6 +60,7 @@ public:
      */
     bool drivingStep(bool isLast) override {
         if(!contextp->gotFinish()) {
+            bool hasData = false;
             contextp->timeInc(1);
 
             //!< assign input signals
@@ -44,18 +79,10 @@ public:
             top->io_in_req_bits_user = transaction->getInSignal("io_in_req_bits_user");
 
             //!< mem_if
-            //!< you'd better add a check to Channel, or directly get data if you can promise that the data is ready
-            if (!ChannelRegistrar::getInstance().hasChannelData("memory", "cache", false, "io_in_resp_ready")) {
-                throw runtime_error("io_in_resp_ready is not ready");
-            }
-            top->io_out_mem_req_ready = ChannelRegistrar::getInstance().getData("memory", "cache", false, "io_out_mem_req_ready");
-
-            if (transaction->checkResponseExistence("memroy", "cache", 0, false)) {
-                auto resp = transaction->getResponse("memroy", "cache", 0, false);
-                top->io_out_mem_resp_valid = resp.outSignal["io_out_mem_resp_valid"];
-                top->io_out_mem_resp_bits_cmd = resp.outSignal["io_out_mem_resp_bits_cmd"];
-                top->io_out_mem_resp_bits_rdata = resp.outSignal["io_out_mem_resp_bits_rdata"];
-            }
+            top->io_out_mem_req_ready = channels[make_pair("cacheDut", "memoryDut")]->getData("io_out_mem_req_ready", hasData);
+            top->io_out_mem_resp_valid = channels[make_pair("cacheDut", "memoryDut")]->getData("io_out_mem_resp_valid", hasData);
+            top->io_out_mem_resp_bits_cmd = channels[make_pair("cacheDut", "memoryDut")]->getData("io_out_mem_resp_bits_cmd", hasData);
+            top->io_out_mem_resp_bits_rdata = channels[make_pair("cacheDut", "memoryDut")]->getData("io_out_mem_resp_bits_rdata", hasData);
 
             //!< coh_if
             top->io_out_coh_req_valid = 0;
@@ -67,17 +94,10 @@ public:
             top->io_out_coh_resp_ready = 0;
 
             //!< mmio_if
-            if (!ChannelRegistrar::getInstance().hasChannelData("mmio", "cache", false, "io_mmio_req_ready")) {
-                throw runtime_error("io_mmio_req_ready is not ready");
-            }
-            top->io_mmio_req_ready = ChannelRegistrar::getInstance().getData("mmio", "cache", false, "io_mmio_req_ready");
-
-            if (transaction->checkResponseExistence("mmio", "cache", 0, false)) {
-                auto resp = transaction->getResponse("mmio", "cache", 0, false);
-                top->io_mmio_resp_valid = resp.outSignal["io_mmio_resp_valid"];
-                top->io_mmio_resp_bits_cmd = resp.outSignal["io_mmio_resp_bits_cmd"];
-                top->io_mmio_resp_bits_rdata = resp.outSignal["io_mmio_resp_bits_rdata"];
-            }
+            top->io_mmio_req_ready = channels[make_pair("cacheDut", "mmioDut")]->getData("io_mmio_req_ready", hasData);
+            top->io_mmio_resp_valid = channels[make_pair("cacheDut", "mmioDut")]->getData("io_mmio_resp_valid", hasData);
+            top->io_mmio_resp_bits_cmd = channels[make_pair("cacheDut", "mmioDut")]->getData("io_mmio_resp_bits_cmd", hasData);
+            top->io_mmio_resp_bits_rdata = channels[make_pair("cacheDut", "mmioDut")]->getData("io_mmio_resp_bits_rdata", hasData);
 
             //!< evaluate model
             top->eval();
@@ -100,27 +120,29 @@ public:
 
             //!< mem_if
             if (top->io_out_mem_req_ready && top->io_out_mem_req_valid) {
-                transaction->setOutSignal("io_out_mem_req_valid", top->io_out_mem_req_valid, false);
-                transaction->setOutSignal("io_out_mem_req_bits_addr", top->io_out_mem_req_bits_addr, false);
-                transaction->setOutSignal("io_out_mem_req_bits_size", top->io_out_mem_req_bits_size, false);
-                transaction->setOutSignal("io_out_mem_req_bits_cmd", top->io_out_mem_req_bits_cmd, false);
-                transaction->setOutSignal("io_out_mem_req_bits_wmask", top->io_out_mem_req_bits_wmask, false);
-                transaction->setOutSignal("io_out_mem_req_bits_wdata", top->io_out_mem_req_bits_wdata, false);
-                transaction->transactionItems.setDone(false);
+                channels[make_pair("cacheDut", "memoryDut")]->setData({
+                    {"io_out_mem_req_valid", top->io_out_mem_req_valid},
+                    {"io_out_mem_req_bits_addr", top->io_out_mem_req_bits_addr},
+                    {"io_out_mem_req_bits_size", top->io_out_mem_req_bits_size},
+                    {"io_out_mem_req_bits_cmd", top->io_out_mem_req_bits_cmd},
+                    {"io_out_mem_req_bits_wmask", top->io_out_mem_req_bits_wmask},
+                    {"io_out_mem_req_bits_wdata", top->io_out_mem_req_bits_wdata}
+                }, true, false);
             }
 
             //!< mmio_if
             if (top->io_mmio_req_ready && top->io_mmio_req_valid) {
-                transaction->setOutSignal("io_mmio_req_valid", top->io_mmio_req_valid, false);
-                transaction->setOutSignal("io_mmio_req_bits_addr", top->io_mmio_req_bits_addr, false);
-                transaction->setOutSignal("io_mmio_req_bits_size", top->io_mmio_req_bits_size, false);
-                transaction->setOutSignal("io_mmio_req_bits_cmd", top->io_mmio_req_bits_cmd, false);
-                transaction->setOutSignal("io_mmio_req_bits_wmask", top->io_mmio_req_bits_wmask, false);
-                transaction->setOutSignal("io_mmio_req_bits_wdata", top->io_mmio_req_bits_wdata, false);
-                transaction->transactionItems.setDone(false);
+                channels[make_pair("cacheDut", "mmioDut")]->setData({
+                    {"io_mmio_req_valid", top->io_mmio_req_valid},
+                    {"io_mmio_req_bits_addr", top->io_mmio_req_bits_addr},
+                    {"io_mmio_req_bits_size", top->io_mmio_req_bits_size},
+                    {"io_mmio_req_bits_cmd", top->io_mmio_req_bits_cmd},
+                    {"io_mmio_req_bits_wmask", top->io_mmio_req_bits_wmask},
+                    {"io_mmio_req_bits_wdata", top->io_mmio_req_bits_wdata}
+                }, true, false);
             }
 
-            ChannelRegistrar::getInstance().setData("cacheDut", "cacheRef", false, "victimWaymask", top->victimWaymask);
+            channels[make_pair("cacheDut", "cacheRef")]->setData({{"victimWaymask", top->victimWaymask}}, false, false);
 
             if (isLast) {
                 //!< don't know why tfp dump lose last cycle
@@ -145,75 +167,226 @@ public:
     }
 };
 
-// ========================= Verifier =========================
-class RefMemory : public Ref {
+// ========================= Ref and RefDriver =========================
+/**
+ * @brief Ref Cache simulator
+ * 
+ */
+class RefCache : public Ref {
 private:
-	/* USER JOIN TODO */
-    unsigned short mem[4];
+    bool cacheEmpty = false;
+    //!< **Notice that C++ vector<bool> implemented different from other vector, cannot use reference**, we use vector<char> instead
+    vector<vector<char>> cacheValid = vector<vector<char>>(128, vector<char>(4, 0));
+    //!< **Notice that C++ vector<bool> implemented different from other vector, cannot use reference**, we use vector<char> instead
+    vector<vector<char>> cacheDirty = vector<vector<char>>(128, vector<char>(4, 0));
+    vector<vector<Data>> cacheTag = vector<vector<Data>>(128, vector<Data>(4, 0));
+    vector<vector<vector<Data>>> cacheData = vector<vector<vector<Data>>>(128, vector<vector<Data>>(4, vector<Data>(8, 0)));
 
 public:
-    Data reset;
-    Data addr;
-    Data wr_en;
-    Data rd_en;
-    Data wdata;
-    Data rdata;
+    RefCache() = delete;
+    ~RefCache() override = default;
 
-    RefMemory() {
-        memset(mem, 0, sizeof(mem));   
+    RefCache(const shared_ptr<ChannelsType>& inChannels, const shared_ptr<Transaction>& inTransaction) : Ref(inChannels, inTransaction) {}
+
+    void reset() {
+        cacheEmpty = false;
+        cacheValid = vector<vector<char>>(128, vector<char>(4, 0));
+        cacheDirty = vector<vector<char>>(128, vector<char>(4, 0));
+        cacheTag = vector<vector<Data>>(128, vector<Data>(4, 0));
+        cacheData = vector<vector<vector<Data>>>(128, vector<vector<Data>>(4, vector<Data>(8, 0)));
     }
-    void exec() override {
-		/* USER JOIN TODO */
-        if (reset) {
-            memset(mem, 0, sizeof(mem));
-            rdata = 0;
+
+    void write_back(int setId, int wayId) {
+        bool hasData = false;
+        PortsData request = {
+            {"wb_req_bits_addr", (cacheTag[setId][wayId] << 13) | (setId << 6)},
+            {"wb_req_bits_cmd", 0b0011},
+            {"wb_req_bits_size", 0b011},
+            {"wb_req_bits_wmask", 0xff}
+        };
+        for (int i = 0; i < 7; i++) {
+            request["req_bits_wdata"] = cacheData[setId][wayId][i];
+            (*channels)[make_pair("cacheRef", "memoryRef")]->setData(request, true, false);
+            assert((*channels)[make_pair("cacheRef", "memoryRef")]->getData("wb_resp_bits_cmd", hasData) == 0b0101);
         }
-        else {
-            if (wr_en) {
-                mem[addr] = wdata;
-            }
-            if (rd_en) {
-                rdata = mem[addr];
+        request["wb_req_bits_cmd"] = 0b0111;
+        request["wb_req_bits_wdata"] = cacheData[setId][wayId][7];
+        (*channels)[make_pair("cacheRef", "memoryRef")]->setData(request, true, false);
+        assert((*channels)[make_pair("cacheRef", "memoryRef")]->getData("wb_resp_bits_cmd", hasData) == 0b0101);
+        cacheValid[setId][wayId] = 0;
+    }
+
+    void fetch(Data addr, int wayId, int wordId) {
+        bool hasData = false;
+        Data tag = addr >> 13;
+        Data setId = (addr >> 6) & ((0x1 << 7) - 1);
+        (*channels)[make_pair("cacheRef", "memoryRef")]->setData({
+            {"f_req_bits_addr", addr & ~(0x7)},
+            {"f_req_bits_size", 0b011},
+            {"f_req_bits_cmd", 0b0010},
+            {"f_req_bits_wmask", 0},
+            {"f_req_bits_wdata", 0}
+        }, true, false);
+        assert((*channels)[make_pair("cacheRef", "memoryRef")]->getData("f_resp_bits_cmd", hasData) == 0b0100);
+        cacheEmpty = false;
+        cacheValid[setId][wayId] = 1;
+        cacheDirty[setId][wayId] = 0;
+        cacheTag[setId][wayId] = tag;
+        cacheData[setId][wayId][wordId] = (*channels)[make_pair("cacheRef", "memoryRef")]->getData("f_resp_bits_rdata", hasData);
+    }
+
+    static int mask2index(int mask) {
+        for (int i = 0; i < 4; i++) {
+            if (mask & (0x1 << i)) {
+                return i;
             }
         }
-	}
+        return -1;
+    }
+
+    static Data bytesmask2bitsmask(char bytemask) {
+        Data bitmask = 0;
+        //!< betther than sv solution
+        for (int i = 0; i < 8; i++) {
+            if (bytemask & (0x1 << i)) {
+                bitmask |= (0xff << (i * 8));
+            }
+        }
+        return bitmask;
+    }
+
+    static int getPacketId(int addr) {
+        return (addr >> 3) & ((1 << 3) - 1);
+    }
+
+    /**
+     * @brief You can use it to handle the whole transaction at one execution, or multi-cycle executions
+     * 
+     */
+    int exec() override {
+        bool hasData = false;
+        //!< reset
+        if (transaction->getInSignal("reset")) {
+            reset();
+        }
+
+        auto addr = transaction->getInSignal("io_in_req_bits_addr");
+        auto mmioAddr = addr >> 28;
+        auto reqTag = addr >> 13;
+        auto reqSetId = addr >> 6 & ((0x1 << 7) - 1);
+        auto reqWordId = addr >> 3 & ((0x1 << 3) - 1);
+        auto inSize = transaction->getInSignal("io_in_req_bits_size");
+        auto inCmd = transaction->getInSignal("io_in_req_bits_cmd");
+        auto inWmask = transaction->getInSignal("io_in_req_bits_wmask");
+        auto inWdata = transaction->getInSignal("io_in_req_bits_wdata");
+        auto inUser = transaction->getInSignal("io_in_req_bits_user");
+
+        // mmio
+        if (mmioAddr >= 3 && mmioAddr <= 7) {
+            (*channels)[make_pair("cacheRef", "mmioRef")]->setData({
+                {"mmio_req_valid", 1},
+                {"mmio_req_bits_addr", addr},
+                {"mmio_req_bits_size", inSize},
+                {"mmio_req_bits_cmd", inCmd},
+                {"mmio_req_bits_wmask", inWmask},
+                {"mmio_req_bits_wdata", inWdata}
+            }, true, false);
+            transaction->setOutSignal("io_in_resp_valid", 1, true);
+            transaction->setOutSignal("io_in_resp_bits_cmd", (*channels)[make_pair("cacheRef", "mmioRef")]->getData("mmio_resp_bits_cmd", hasData), true);
+            transaction->setOutSignal("io_in_resp_bits_rdata", (*channels)[make_pair("cacheRef", "mmioRef")]->getData("mmio_resp_bits_rdata", hasData), true);
+            transaction->setOutSignal("io_in_resp_bits_user", inUser, true);
+        }
+        
+
+        // check hitness
+        Data bitmask = bytesmask2bitsmask((char)inWmask);
+        int hitId = -1;
+        bool needRefill = false;
+
+        for (int i = 0; i < 4; i++) {
+            if (cacheValid[reqSetId][i] && cacheTag[reqSetId][i] == reqTag) {
+                hitId = i;
+                break;
+            }
+        }
+
+        //!< miss
+        if (hitId == -1) {
+            int victimId = -1;
+            for (int i = 3; i >= 0; i--) {
+                if (!cacheValid[reqSetId][i]) {
+                    victimId = i;
+                    break;
+                }
+            }
+            //!< need evict
+            if (victimId  == -1) {
+                victimId = mask2index((int)(*channels)[make_pair("cacheDut", "cacheRef")]->getData("victimWaymask", hasData));
+                if (cacheDirty[reqSetId][victimId]) {
+                    write_back((int)reqSetId, victimId);
+                }
+            }
+            //!< fetch data
+            fetch(addr, victimId, (int)reqWordId);
+            needRefill = true;
+            hitId = victimId;
+        }
+
+        //!< write cache
+        if (inCmd == 0b0001 || inCmd == 0b0011 || inCmd == 0b0111) {
+            cacheDirty[reqSetId][hitId] = 1;
+            cacheData[reqSetId][hitId][reqWordId] = (cacheData[reqSetId][hitId][reqWordId] & ~bitmask) | (inWdata & bitmask);
+        }
+
+        //!< send response
+        transaction->setOutSignal("io_in_resp_valid", 1, true);
+        transaction->setOutSignal("io_in_resp_bits_user", inUser, true);
+        transaction->setOutSignal("io_empty", cacheEmpty, true);
+        if (inCmd == 0b0000 || inCmd == 0b0010) {
+            transaction->setOutSignal("io_in_resp_bits_cmd", 0b0110, true);
+            transaction->setOutSignal("io_in_resp_bits_rdata", cacheData[reqSetId][hitId][reqWordId], true);
+        } else {
+            transaction->setOutSignal("io_in_resp_bits_cmd", 0b0101, true);
+            transaction->setOutSignal("io_in_resp_bits_rdata", 0, true);
+        }
+
+        // !< refill
+        if (needRefill) {
+            auto pktId = getPacketId((int)addr);
+            (*channels)[make_pair("cacheRef", "memoryRef")] -> setData({
+                {"mem_req_valid", 1},
+                {"mem_req_bits_addr", addr},
+                {"mem_req_bits_size", inSize},
+                {"mem_req_bits_cmd", inCmd},
+                {"mem_req_bits_wmask", inWmask},
+                {"mem_req_bits_wdata", inWdata}
+            }, true, false);
+            for (int i = 1; i < 8; i++) {
+                pktId = (pktId + 1) % 8;
+                cacheData[reqSetId][hitId][pktId] = (*channels)[make_pair("cacheRef", "memoryRef")]->getData("mem_resp_bits_rdata", hasData);
+            }
+        }
+        return 0;
+    }
 };
 
-
-class RefMemoryDriver : public RefUnitDriver {
+/**
+ * @brief RefUnitDriver, use a ref class to simulate the dut logic
+ * 
+ */
+class RefCacheDriver : public RefUnitDriver {
 private:
-    unique_ptr<RefMemory> top;
+    RefCache ref;
 
 public:
-    RefMemoryDriver() = delete;
-    ~RefMemoryDriver() = default;
-    RefMemoryDriver(shared_ptr<Transaction> inTransaction) : RefUnitDriver(inTransaction), top(make_unique<RefMemory>()) {}
+    RefCacheDriver() : RefUnitDriver("cache"), ref(make_shared<ChannelsType>(channels), transaction) {};
+    ~RefCacheDriver() override = default;
 
-    /* just execute one test */
     bool drivingStep(bool isLast) override {
-        return true;
+        return ref.exec();
     }
 };
 
 int main() {
-    //!< Generate Tests
-    shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
-
-    PortSpecGeneratorModel portSpecGeneratorModel(userTests);
-    for (Data i = 1; i < 5; i++) {
-        portSpecGeneratorModel.setSize(6);
-        portSpecGeneratorModel.addPortTestSpec("reset", 0, 1, GeneratorType::DIRECT_INPUT, {1});
-        portSpecGeneratorModel.addPortTestSpec("addr" , 0, 5, GeneratorType::DIRECT_INPUT, {i});
-        portSpecGeneratorModel.addPortTestSpec("wr_en", 2, 3, GeneratorType::DIRECT_INPUT, {1});
-        portSpecGeneratorModel.addPortTestSpec("rd_en", 4, 5, GeneratorType::DIRECT_INPUT, {1});
-        portSpecGeneratorModel.addPortTestSpec("wdata", 0, 5, GeneratorType::DIRECT_INPUT, {i});
-        portSpecGeneratorModel.generateSerialTest(true);
-    }
-
-
-    //!< Execution
-    TransactionLauncher::setupTransaction(1000, userTests->getTests());
-    Spreader<DutMemoryDriver, RefMemoryDriver, VerilatorReporter> spreader("log/memory", "report/memory");
-    spreader.execute();
     return 0;
 }

@@ -1,3 +1,14 @@
+/**
+ * @file simulatorDriver.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include <utility>
@@ -5,15 +16,15 @@
 #include "Drivers/driverModel.h"
 #include "Simulator/simulator.h"
 
-namespace MVM::Driver {
+namespace MLVP::Driver {
 class SimulatorDriver : public DriverModel {
 private:
-    std::unique_ptr<MVM::Simulator::Simulator> simulator;
+    std::unique_ptr<MLVP::Simulator::Simulator> simulator;
 
 public:
     SimulatorDriver() = delete;
     ~SimulatorDriver() override = default;
-    SimulatorDriver(std::string inSimulatorName, std::unique_ptr<MVM::Simulator::Simulator> inSimulator) : DriverModel(std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
+    SimulatorDriver(std::string inSimulatorName, std::unique_ptr<MLVP::Simulator::Simulator> inSimulator) : DriverModel(std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
 
     /**
      * bool drivingStep(bool isLast) override
@@ -63,4 +74,4 @@ public:
 
 }; // class SimulatorlRegistrar
 
-} // namespace MVM::Driver
+} // namespace MLVP::Driver

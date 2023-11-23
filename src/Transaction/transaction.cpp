@@ -1,3 +1,14 @@
+/**
+ * @file transaction.cpp
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #include "Transaction/transaction.h"
 
 #include <functional>
@@ -6,12 +17,12 @@
 #include "Library/error.h"
 
 using namespace std;
-using namespace MVM::Transaction;
-using namespace MVM::Database;
-using namespace MVM::Type;
-using namespace MVM::Library;
+using namespace MLVP::Transaction;
+using namespace MLVP::Database;
+using namespace MLVP::Type;
+using namespace MLVP::Library;
 
-const TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, const SerialTestSingle &inSignal, bool fromRef) {
+TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, const PortsData &inSignal, bool fromRef) {
     lock_guard<mutex> lock(transactionMutex);
     auto modulePair = make_pair(inSrc, inDest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
@@ -43,7 +54,7 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     }
 }
 
-void Transaction::addResponse(TransactionReq &req, SerialTestSingle outSignal, bool fromRef) {
+void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef) {
     lock_guard<mutex> lock(transactionMutex);
     auto modulePair = make_pair(req.src, req.dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
@@ -102,8 +113,8 @@ bool Transaction::compareRefDutResponse(TransactionReq &dutReq, TransactionReq &
     if (!dutReq.getResp() || !refReq.getResp()) {
         throw std::runtime_error("Transaction response not found");
     }
-    if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(dutReq.src, dutReq.dest, true)) {
-        return MVM::Evaluator::Evaluator::getInstance().eval(dutReq.src, dutReq.dest, true, dutReq.inSignal, dutReq.getResp()->outSignal);
+    if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(dutReq.src, dutReq.dest, true)) {
+        return MLVP::Evaluator::Evaluator::getInstance().eval(dutReq.src, dutReq.dest, true, dutReq.inSignal, dutReq.getResp()->outSignal);
     }
     else {
         return dutReq.getResp()->outSignal == refReq.getResp()->outSignal;
@@ -118,8 +129,8 @@ bool Transaction::compareRefDutResponse(const std::string &src, const std::strin
     if (!dutUserTransactions[modulePair][dutReqId].second.has_value() || !refUserTransactions[modulePair][refReqId].second.has_value()) {
         throw std::runtime_error("Transaction response not found");
     }
-    if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(src, dest, true)) {
-        return MVM::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][dutReqId].first.inSignal, refUserTransactions[modulePair][refReqId].second.value().outSignal);
+    if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(src, dest, true)) {
+        return MLVP::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][dutReqId].first.inSignal, refUserTransactions[modulePair][refReqId].second.value().outSignal);
     }
     else {
         return dutUserTransactions[modulePair][dutReqId].second.value().outSignal == refUserTransactions[modulePair][refReqId].second.value().outSignal;
@@ -134,8 +145,8 @@ bool Transaction::compareRefDutResponse(const TransactionReq &req) {
     if (!dutUserTransactions[modulePair][req.id].second.has_value() || !refUserTransactions[modulePair][req.id].second.has_value()) {
         throw std::runtime_error("Transaction response not found");
     }
-    if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval(req.src, req.dest, true)) {
-        return MVM::Evaluator::Evaluator::getInstance().eval(req.src, req.dest, true, dutUserTransactions[modulePair][req.id].first.inSignal, dutUserTransactions[modulePair][req.id].second.value().outSignal);
+    if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(req.src, req.dest, true)) {
+        return MLVP::Evaluator::Evaluator::getInstance().eval(req.src, req.dest, true, dutUserTransactions[modulePair][req.id].first.inSignal, dutUserTransactions[modulePair][req.id].second.value().outSignal);
     }
     else {
         return dutUserTransactions[modulePair][req.id].second.value().outSignal == refUserTransactions[modulePair][req.id].second.value().outSignal;
@@ -178,7 +189,7 @@ bool Transaction::compareRefDut(int type) {
 }
 
 
-int TransactionLauncher::setupTransaction(vector<SerialTestSingle> dataSet) {
+int TransactionLauncher::setupTransaction(vector<PortsData> dataSet) {
     vector<shared_ptr<Transaction>> transactions;
     transactions.reserve(dataSet.size());
     for (auto &test : dataSet) {

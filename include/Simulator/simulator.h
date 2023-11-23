@@ -1,25 +1,39 @@
+/**
+ * @file simulator.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include "Library/types.h"
 
-namespace MVM::Simulator {
+namespace MLVP::Simulator {
 class Simulator
 {
 private:
+    bool connectToRef;
 
 public:
-    Simulator() = default;
+    Simulator() = delete;
     virtual ~Simulator() = default;
+
+    explicit Simulator(bool inConnectToRef) : connectToRef(inConnectToRef) {}
 
     /**
      * @brief Assign Input to Simulator
      * @details split input and execution, because in some cases response longer than 1 cycle
      * 
-     * @param MVM::Type::SerialTestSingle inSignal 
+     * @param MLVP::Type::PortsData inSignal 
      * @return true 
      * @return false 
      */
-    virtual bool assignInput(MVM::Type::SerialTestSingle inSignal) = 0;
+    virtual bool assignInput(MLVP::Type::PortsData inSignal) = 0;
 
     /**
      * @brief Use return value to check if transaction is done
@@ -32,9 +46,9 @@ public:
     /**
      * @brief Get the Output ports-data
      * 
-     * @return const MVM::Type::SerialTestSingle & 
+     * @return const MLVP::Type::PortsData & 
      */
-    virtual const MVM::Type::SerialTestSingle &getOutput() = 0;
+    virtual const MLVP::Type::PortsData &getOutput() = 0;
 };
 
 }

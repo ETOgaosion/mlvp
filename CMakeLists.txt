@@ -1,7 +1,7 @@
-# cmake for mvm
+# cmake for mlvp
 
 cmake_minimum_required(VERSION 3.16.3)
-project(MVM VERSION 0.0.1)
+project(MLVP VERSION 0.0.1)
 
 if (CMAKE_CXX_COMPILER_VERSION VERSION_LESS 10.0)
     message(FATAL_ERROR "GCC version must be at least 10.0!  " ${CMAKE_CXX_COMPILER_VERSION})
@@ -45,7 +45,7 @@ set(CMAKE_INSTALL_PREFIX /usr/local)
 set(CMAKE_INSTALL_LOCAL_ONLY TRUE)
 
 install(
-    TARGETS mvm-lib 
+    TARGETS mlvp-lib 
     LIBRARY DESTINATION lib/
 )
 install(

@@ -1,17 +1,28 @@
+/**
+ * @file types.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include <vector>
 #include <unordered_map>
 #include <string>
 
-namespace MVM::Type {
+namespace MLVP::Type {
 /**
  * @brief All port data support maximum 64 bits, if you need more, please split into multiple wire ports
  * 
  */
 typedef unsigned long long Data;
 
-typedef std::vector<Data> TestData;
+typedef std::vector<Data> SerialData;
 
 /**
  * @brief This one's basic unit is multiple ports
@@ -24,7 +35,7 @@ typedef std::vector<Data> TestData;
  * }
  * 
  */
-typedef std::vector<TestData> SerialData;
+typedef std::vector<SerialData> SerialDatasSet;
 
 /**
  * @brief This one's basic unit is one port multiple data, we use it to compress memory consumption
@@ -35,11 +46,10 @@ typedef std::vector<TestData> SerialData;
  * }
  * 
  */
-typedef std::unordered_map<std::string, TestData> SerialTest;
+typedef std::unordered_map<std::string, SerialData> SerialTest;
 
-typedef std::unordered_map<std::string, Data> SerialTestSingle;
+typedef std::unordered_map<std::string, Data> PortsData;
 
-typedef std::vector<SerialData> SerialDatasSet;
 typedef std::vector<SerialTest> SerialTestSet;
 
-} // namespace MVM::Types
+} // namespace MLVP::Types

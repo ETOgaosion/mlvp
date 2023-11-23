@@ -14,12 +14,12 @@
 #include "Library/error.h"
 #include "Evaluator/evaluate.h"
 
-namespace MVM::Transaction {
+namespace MLVP::Transaction {
 /* dangerous */
 class TransactionCounter
 {
 private:
-    MVM::Type::Data transactionBaseID;
+    MLVP::Type::Data transactionBaseID;
     std::mutex transactionCounterMutex;
 
     TransactionCounter() : transactionBaseID(0) {}
@@ -33,7 +33,7 @@ public:
         return instance;
     }
 
-    MVM::Type::Data getTransactionID() {
+    MLVP::Type::Data getTransactionID() {
         std::lock_guard<std::mutex> lock(transactionCounterMutex);
         return transactionBaseID++;
     }
@@ -49,9 +49,9 @@ class TransactionTop {
 private:
     TransactionReqStatus dutStatus;
     TransactionReqStatus refStatus;
-    MVM::Type::SerialTestSingle inSignal;
-    MVM::Type::SerialTestSingle dutOutSignal;
-    MVM::Type::SerialTestSingle refOutSignal;
+    MLVP::Type::PortsData inSignal;
+    MLVP::Type::PortsData dutOutSignal;
+    MLVP::Type::PortsData refOutSignal;
 
 public:
     int cycles;
@@ -61,7 +61,7 @@ public:
         refOutSignal.clear();
     }
     ~TransactionTop() = default;
-    explicit TransactionTop(MVM::Type::SerialTestSingle newInSignal) : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), cycles(0), inSignal(std::move(newInSignal)) {
+    explicit TransactionTop(MLVP::Type::PortsData newInSignal) : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), cycles(0), inSignal(std::move(newInSignal)) {
         dutOutSignal.clear();
         refOutSignal.clear();
     }
@@ -91,9 +91,9 @@ public:
         cycles = inCycles;
     }
 
-    bool setInSignal(const std::string &portName, MVM::Type::Data data) {
+    bool setInSignal(const std::string &portName, MLVP::Type::Data data) {
         if (inSignal.contains(portName)) {
-            if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+            if (MLVP::Library::bugHandleDegree != MLVP::Library::Degree::SKIP) {
                 throw std::runtime_error("Transaction in signal port name conflict");
             }
             return false;
@@ -102,18 +102,18 @@ public:
         return true;
     }
 
-    MVM::Type::Data getInSignal(const std::string &portName) {
+    MLVP::Type::Data getInSignal(const std::string &portName) {
         if (!inSignal.contains(portName)) {
             throw std::runtime_error("Transaction in signal port name not found");
         }
         return inSignal[portName];
     }
 
-    const MVM::Type::SerialTestSingle &getInSignal() {
+    const MLVP::Type::PortsData &getInSignal() {
         return inSignal;
     }
 
-    const MVM::Type::SerialTestSingle &getOutSignal(bool fromRef) {
+    const MLVP::Type::PortsData &getOutSignal(bool fromRef) {
         if (fromRef) {
             refStatus = TransactionReqStatus::HANDLING;
             return refOutSignal;
@@ -124,7 +124,7 @@ public:
         }
     }
 
-    MVM::Type::Data getOutSignal(const std::string &portName, bool fromRef) {
+    MLVP::Type::Data getOutSignal(const std::string &portName, bool fromRef) {
         if (fromRef) {
             refStatus = TransactionReqStatus::HANDLING;
             if (!refOutSignal.contains(portName)) {
@@ -141,7 +141,7 @@ public:
         }
     }
 
-    void setOutSignal(const MVM::Type::SerialTestSingle &inOutSignal, bool fromRef) {
+    void setOutSignal(const MLVP::Type::PortsData &inOutSignal, bool fromRef) {
         if (fromRef) {
             refStatus = TransactionReqStatus::DONE;
             refOutSignal = inOutSignal;
@@ -152,11 +152,11 @@ public:
         }
     }
 
-    void setOutSignal(const std::string &portName, MVM::Type::Data data, bool fromRef) {
+    void setOutSignal(const std::string &portName, MLVP::Type::Data data, bool fromRef) {
         if (fromRef) {
             refStatus = TransactionReqStatus::DONE;
             if (refOutSignal.contains(portName)) {
-                if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+                if (MLVP::Library::bugHandleDegree != MLVP::Library::Degree::SKIP) {
                     throw std::runtime_error("Transaction out signal port name conflict");
                 }
                 return;
@@ -166,7 +166,7 @@ public:
         else {
             dutStatus = TransactionReqStatus::DONE;
             if (dutOutSignal.contains(portName)) {
-                if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+                if (MLVP::Library::bugHandleDegree != MLVP::Library::Degree::SKIP) {
                     throw std::runtime_error("Transaction out signal port name conflict");
                 }
                 return;
@@ -176,8 +176,8 @@ public:
     }
 
     bool compareRefDut() {
-        if (MVM::Evaluator::Evaluator::getInstance().hasValidUserEval("user", "top", true)) {
-            return MVM::Evaluator::Evaluator::getInstance().eval("user", "top", true, dutOutSignal, refOutSignal);
+        if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval("user", "top", true)) {
+            return MLVP::Evaluator::Evaluator::getInstance().eval("user", "top", true, dutOutSignal, refOutSignal);
         }
         return dutOutSignal == refOutSignal;
     }
@@ -194,13 +194,13 @@ public:
     int id;
     std::string src;
     std::string dest;
-    MVM::Type::SerialTestSingle inSignal;
+    MLVP::Type::PortsData inSignal;
 
     TransactionReq() = delete;
     ~TransactionReq() = default;
 
     TransactionReq(int inId, std::string inSrc, std::string inDest) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW) { inSignal.clear(); }
-    TransactionReq(int inId, std::string inSrc, std::string inDest, MVM::Type::SerialTestSingle  newInSignal) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW), inSignal(std::move(newInSignal)) {}
+    TransactionReq(int inId, std::string inSrc, std::string inDest, MLVP::Type::PortsData  newInSignal) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW), inSignal(std::move(newInSignal)) {}
 
     bool isNew() {
         return status == TransactionReqStatus::NEW;
@@ -240,20 +240,20 @@ struct TransactionResp {
     int id;
     std::string src;
     std::string dest;
-    MVM::Type::SerialTestSingle outSignal;
+    MLVP::Type::PortsData outSignal;
     std::shared_ptr<TransactionReq> req;
 
     TransactionResp() = delete;
     TransactionResp(const std::shared_ptr<TransactionReq>&inReq, std::string inSrc, std::string inDest) : req(inReq), id(inReq->id), src(std::move(inSrc)), dest(std::move(inDest)) { outSignal.clear(); }
-    TransactionResp(const std::shared_ptr<TransactionReq>&inReq, std::string inSrc, std::string inDest, MVM::Type::SerialTestSingle inOutSignal) : req(inReq), id(inReq->id), src(std::move(inSrc)), dest(std::move(inDest)), outSignal(std::move(inOutSignal)) {}
+    TransactionResp(const std::shared_ptr<TransactionReq>&inReq, std::string inSrc, std::string inDest, MLVP::Type::PortsData inOutSignal) : req(inReq), id(inReq->id), src(std::move(inSrc)), dest(std::move(inDest)), outSignal(std::move(inOutSignal)) {}
 
-    void setOutSignal(MVM::Type::SerialTestSingle inOutSignal) {
+    void setOutSignal(MLVP::Type::PortsData inOutSignal) {
         outSignal = std::move(inOutSignal);
     }
 
-    void setOutSignal(const std::string &portName, MVM::Type::Data data) {
+    void setOutSignal(const std::string &portName, MLVP::Type::Data data) {
         if (outSignal.contains(portName)) {
-            if (MVM::Library::bugHandleDegree != MVM::Library::Degree::SKIP) {
+            if (MLVP::Library::bugHandleDegree != MLVP::Library::Degree::SKIP) {
                 throw std::runtime_error("Transaction response out signal port name conflict");
             }
             return;
@@ -261,7 +261,7 @@ struct TransactionResp {
         outSignal[portName] = data;
     }
 
-    MVM::Type::Data getOutSignal(const std::string &portName) {
+    MLVP::Type::Data getOutSignal(const std::string &portName) {
         if (!outSignal.contains(portName)) {
             throw std::runtime_error("Transaction response out signal port name not found");
         }
@@ -276,7 +276,7 @@ struct TransactionResp {
 class Transaction
 {
 private:
-    MVM::Type::Data transactionID;
+    MLVP::Type::Data transactionID;
     std::mutex transactionMutex;
 
 public:
@@ -305,21 +305,21 @@ public:
     Transaction() = delete;
     ~Transaction() = default;
 
-    explicit Transaction(MVM::Type::SerialTestSingle inTest) : transactionItems(std::move(inTest)), dutUserTransactions({}), refUserTransactions({}) {
+    explicit Transaction(MLVP::Type::PortsData inTest) : transactionItems(std::move(inTest)), dutUserTransactions({}), refUserTransactions({}) {
         transactionID = TransactionCounter::getInstance().getTransactionID();
     }
 
-    MVM::Type::Data getTransactionID() const {
+    MLVP::Type::Data getTransactionID() const {
         return transactionID;
     }
 
     // ============================== TransactionItem Methods ==============================
-    void setOutSignal(const MVM::Type::SerialTestSingle &inOutSignal, bool fromRef) {
+    void setOutSignal(const MLVP::Type::PortsData &inOutSignal, bool fromRef) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.setOutSignal(inOutSignal, fromRef);
     }
 
-    void setOutSignal(const std::string &portName, MVM::Type::Data data, bool fromRef) {
+    void setOutSignal(const std::string &portName, MLVP::Type::Data data, bool fromRef) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.setOutSignal(portName, data, fromRef);
     }
@@ -329,23 +329,21 @@ public:
         transactionItems.setCycles(cycles);
     }
 
-    const MVM::Type::SerialTestSingle &getInSignal() {
+    const MLVP::Type::PortsData &getInSignal() {
         return transactionItems.getInSignal();
     }
 
-    MVM::Type::Data getInSignal(const std::string &portName) {
+    MLVP::Type::Data getInSignal(const std::string &portName) {
         return transactionItems.getInSignal(portName);
     }
 
-    const MVM::Type::SerialTestSingle &getOutSignal(bool fromRef) {
+    const MLVP::Type::PortsData &getOutSignal(bool fromRef) {
         return transactionItems.getOutSignal(fromRef);
     }
 
-    MVM::Type::Data getCycles() const {
+    MLVP::Type::Data getCycles() const {
         return transactionItems.getCycles();
     }
-
-    // ================================== TransactionReq Methods ====================================
 
     // ================================== Request - Response method ====================================
 
@@ -357,7 +355,7 @@ public:
      * @param inSignal request port - data signal
      * @param fromRef whether the request is from 0 - dut or 1 - ref
      */
-    const TransactionReq &addRequest(const std::string &inSrc, const std::string &inDest, const MVM::Type::SerialTestSingle &inSignal, bool fromRef);
+    TransactionReq &addRequest(const std::string &inSrc, const std::string &inDest, const MLVP::Type::PortsData &inSignal, bool fromRef);
 
     /**
      * @brief recommended method to add a inter-module request
@@ -375,7 +373,7 @@ public:
      * @param outSignal response port - data signal
      * @param fromRef whether the response is from 0 - dut or 1 - ref
      */
-    void addResponse(TransactionReq &req, MVM::Type::SerialTestSingle outSignal, bool fromRef);
+    void addResponse(TransactionReq &req, MLVP::Type::PortsData outSignal, bool fromRef);
 
     /**
      * @brief check whether there is a request from src to dest
@@ -398,7 +396,10 @@ public:
      * @param fromRef 
      * @return const TransactionReq& 
      */
-    const TransactionReq &getRequest(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+    TransactionReq &getRequest(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+        if (reqId == -1) {
+            return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().first : dutUserTransactions[std::make_pair(src, dest)].back().first;
+        }
         return fromRef ? refUserTransactions[std::make_pair(src, dest)][reqId].first : dutUserTransactions[std::make_pair(src, dest)][reqId].first;
     }
 
@@ -423,7 +424,10 @@ public:
      * @param fromRef 
      * @return const TransactionResp& 
      */
-    const TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+    TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+        if (reqId == -1) {
+            return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.value() : dutUserTransactions[std::make_pair(src, dest)].back().second.value();
+        }
         return fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second.value() : dutUserTransactions[std::make_pair(dest, src)][reqId].second.value();
     }
 
@@ -481,12 +485,12 @@ private:
 public:
     TransactionLauncher() = delete;
 
-    static int setupTransaction(std::vector<MVM::Type::SerialTestSingle> dataSet);
+    static int setupTransaction(std::vector<MLVP::Type::PortsData> dataSet);
 
 };
 
     
-} // namespace MVM::Transaction
+} // namespace MLVP::Transaction
 
     
 

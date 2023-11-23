@@ -1,10 +1,10 @@
-# mvm
+# mlvp
 
 [EngishVer.](./README.en.md)
 
 #### 介绍
 
-Multi-language-based chip Verification Methodology (MVM)
+Multi-language-based chip Verification Methodology (MLVP)
 
 #### 目标
 
@@ -12,4 +12,4 @@ Multi-language-based chip Verification Methodology (MVM)
 
 此版本的架构图：
 
-![MVM](./assets//images/MVM_BareDut.png)
+![MLVP](./assets//images/MLVP_BareDut.png)

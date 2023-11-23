@@ -1,0 +1,1 @@
+find . -type f \( -iname \*.h -o -iname \*.cpp -o -iname \*.py -o -iname \*.sh -o -iname CMakeLists.txt \) ! -path "./build/*" ! -path "./test/*" ! -path "./tmp/*" ! -path "./cmake-build-debug/*" ! -path "./third-party/*" ! -path "./include/MCVPack/*" | xargs wc -l

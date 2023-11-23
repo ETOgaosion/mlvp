@@ -1,3 +1,14 @@
+/**
+ * @file generatorHelper.cpp
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #include "TestGenerator/generatorHelper.h"
 
 #include <iostream>
@@ -6,10 +17,10 @@
 #include "Database/database.h"
 
 using namespace std;
-using namespace MVM::Type;
-using namespace MVM::TestGenerator;
-using namespace MVM::Library;
-using namespace MVM::Database;
+using namespace MLVP::Type;
+using namespace MLVP::TestGenerator;
+using namespace MLVP::Library;
+using namespace MLVP::Database;
 
 void GeneratedUserTest::addSerialTest(const SerialTest &testSet) {
     userTest->push_back(testSet);
@@ -19,13 +30,13 @@ void GeneratedUserTest::addSerialTest() {
     userTest->push_back(SerialTest());
 }
 
-void GeneratedUserTest::addPortTest(const string &portName, TestData test) {
+void GeneratedUserTest::addPortTest(const string &portName, SerialData test) {
     userTest->back()[portName] = std::move(test);
 }
 
 bool PortSpecGeneratorModel::setSize(int inSize) {
     if (size) {
-        if (MVM::Library::bugHandleDegree == MVM::Library::Degree::HIGH)
+        if (MLVP::Library::bugHandleDegree == MLVP::Library::Degree::HIGH)
             throw runtime_error("PortSpecGeneratorModel > Size is already set");
         else {
             return false;
@@ -33,7 +44,7 @@ bool PortSpecGeneratorModel::setSize(int inSize) {
     }
     else {
         if (inSize <= 0) {
-            if (MVM::Library::bugHandleDegree == MVM::Library::Degree::HIGH)
+            if (MLVP::Library::bugHandleDegree == MLVP::Library::Degree::HIGH)
                 throw runtime_error("PortSpecGeneratorModel > Size is not valid");
             else {
                 return false;
@@ -128,7 +139,7 @@ bool PortSpecGeneratorModel::checkAllPortSpec() {
     return true;
 }
 
-bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const TestData &value) {
+bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const SerialData &value) {
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);

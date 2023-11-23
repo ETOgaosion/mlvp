@@ -1,9 +1,20 @@
+/**
+ * @file error.h
+ * @author Gao Sion (gaosion2001@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2023-11-24
+ * 
+ * @copyright Copyright (c) 2023
+ * 
+ */
+
 #pragma once
 
 #include <string>
 #include <iostream>
 
-namespace MVM::Library {
+namespace MLVP::Library {
 enum class Degree {
     SKIP = 0,
     LOW = 1,
@@ -16,7 +27,7 @@ static Degree bugHandleDegree = BUGDEGREE;
 static void FunctionNotImplementError(const std::string &functionName) {
     switch (bugHandleDegree)
     {
-    case MVM::Library::Degree::HIGH:
+    case MLVP::Library::Degree::HIGH:
         throw std::runtime_error("use base class not implemented methed");
         break;
     
@@ -26,4 +37,4 @@ static void FunctionNotImplementError(const std::string &functionName) {
     }
 }
 
-} // namespace MVM::Library
+} // namespace MLVP::Library
