@@ -20,7 +20,7 @@
  *
  * @section arch_sec Architecture
  *
- * @image html MVM_BareDut.png
+ * @image html MLVP_BareDut.png
  * 
  */
 
