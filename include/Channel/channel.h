@@ -38,6 +38,7 @@ private:
     std::string destination;
     std::shared_ptr<T> destDriver; //!< dest driver, actually a UnitDriver Child
     MLVP::Type::PortsData data;
+    std::multimap<std::string, MLVP::Type::Data> multiData;
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
 
 public:
@@ -69,8 +70,8 @@ public:
                 auto responseFuture = std::async(std::launch::async, [this]{
                     destDriver->drivingStep(false);
                 });
-                //!< wait for response
-                responseFuture.get();
+                //!< wait for response, just stall for some cycles, wait for data income
+                // responseFuture.get();
             }
         }
     }

@@ -19,12 +19,12 @@
 namespace MLVP::Driver {
 class SimulatorDriver : public DriverModel {
 private:
-    std::unique_ptr<MLVP::Simulator::Simulator> simulator;
+    std::shared_ptr<MLVP::Simulator::Simulator> simulator;
 
 public:
     SimulatorDriver() = delete;
     ~SimulatorDriver() override = default;
-    SimulatorDriver(std::string inSimulatorName, std::unique_ptr<MLVP::Simulator::Simulator> inSimulator) : DriverModel(std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
+    SimulatorDriver(std::string inSimulatorName, std::shared_ptr<MLVP::Simulator::Simulator> inSimulator) : DriverModel(std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
 
     /**
      * bool drivingStep(bool isLast) override

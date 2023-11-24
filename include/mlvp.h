@@ -30,6 +30,7 @@ using namespace MLVP::Database;
 using namespace MLVP::Channel;
 using namespace MLVP::Spreader;
 using namespace MLVP::Driver;
+using namespace MLVP::Simulator;
 using namespace MLVP::TestGenerator;
 using namespace MLVP::Transaction;
 using namespace MLVP::Reporter;

@@ -19,6 +19,7 @@
 #include <random>
 #include <unordered_map>
 #include <functional>
+#include <chrono>
 
 #include "Library/error.h"
 #include "Library/types.h"
@@ -85,7 +86,7 @@ private:
 
 public:
     PortSpecGeneratorModel() = delete;
-    explicit PortSpecGeneratorModel(const std::shared_ptr<GeneratedUserTest>&inMiddleContents) : size(0), middleContents(inMiddleContents), rng((std::random_device())()) {}
+    explicit PortSpecGeneratorModel(const std::shared_ptr<GeneratedUserTest>&inMiddleContents) : size(0), middleContents(inMiddleContents), rng(std::chrono::system_clock::now().time_since_epoch().count()) {}
     ~PortSpecGeneratorModel() = default;
 
     bool setSize(int inSize);

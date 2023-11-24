@@ -11,8 +11,10 @@
 
 #include "Transaction/transaction.h"
 
+#include <bits/ranges_algo.h>
 #include <functional>
 #include <utility>
+#include <vector>
 #include "Database/database.h"
 #include "Library/error.h"
 
@@ -33,7 +35,7 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     }
     else {
         TransactionReq req(0, inSrc, inDest, inSignal);
-        userTransaction[modulePair] = vector<pair<TransactionReq, optional<TransactionResp>>>{make_pair(req, nullopt)};
+        userTransaction[modulePair] = vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())};
         return userTransaction[modulePair].back().first;
     }
 }
@@ -49,7 +51,7 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     }
     else {
         TransactionReq req(0, inSrc, inDest);
-        userTransaction[modulePair] = vector<pair<TransactionReq, optional<TransactionResp>>>{make_pair(req, nullopt)};
+        userTransaction[modulePair] = vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())};
         return userTransaction[modulePair].back().first;
     }
 }
@@ -63,8 +65,8 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
     }
     auto &transactionItem = userTransaction[modulePair][req.id];
     TransactionResp resp(make_shared<TransactionReq>(transactionItem.first), req.dest, req.src, std::move(outSignal));
-    transactionItem.second = make_optional(std::move(resp));
-    transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.value()));
+    transactionItem.second.push_back(std::move(resp));
+    transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.back()));
     transactionItem.first.setDone();
 }
 
@@ -98,7 +100,7 @@ vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bo
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     for (auto &transaction : userTransaction) {
         for (auto &transactionItems : transaction.second) {
-            if (!transactionItems.second.has_value()) {
+            if (transactionItems.second.empty()) {
                 throw runtime_error("Transaction response not found");
             }
             else {
@@ -126,14 +128,18 @@ bool Transaction::compareRefDutResponse(const std::string &src, const std::strin
     if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
         throw std::runtime_error("Transaction request not found");
     }
-    if (!dutUserTransactions[modulePair][dutReqId].second.has_value() || !refUserTransactions[modulePair][refReqId].second.has_value()) {
+    if (dutUserTransactions[modulePair][dutReqId].second.empty() || refUserTransactions[modulePair][refReqId].second.empty()) {
         throw std::runtime_error("Transaction response not found");
     }
     if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(src, dest, true)) {
-        return MLVP::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][dutReqId].first.inSignal, refUserTransactions[modulePair][refReqId].second.value().outSignal);
+        ranges::all_of(dutUserTransactions[modulePair][dutReqId].second, [this, &src, &dest, &dutReqId, &refReqId, modulePair](TransactionResp &resp) {
+            return MLVP::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][dutReqId].first.inSignal, resp.outSignal);
+        });
+        return true;
     }
     else {
-        return dutUserTransactions[modulePair][dutReqId].second.value().outSignal == refUserTransactions[modulePair][refReqId].second.value().outSignal;
+        ranges
+        return dutUserTransactions[modulePair][dutReqId].second.back().outSignal == refUserTransactions[modulePair][refReqId].second.value().outSignal;
     }
 }
 

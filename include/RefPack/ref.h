@@ -30,6 +30,9 @@ typedef std::map<std::pair<std::string, std::string>, std::shared_ptr<MLVP::Chan
  */
 class Ref
 {
+private:
+    std::string name;
+
 protected:
     std::shared_ptr<ChannelsType> channels; //!< <dest name, Channel<DriverModel>>
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
@@ -38,9 +41,9 @@ public:
     Ref() = delete;
     virtual ~Ref() = default;
 
-    Ref(std::shared_ptr<ChannelsType> inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : channels(std::move(inChannels)), transaction(std::move(inTransaction)) {}
+    Ref(std::string inName, std::shared_ptr<ChannelsType> inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : name(std::move(inName)), channels(std::move(inChannels)), transaction(std::move(inTransaction)) {}
 
-    virtual int exec() = 0;
+    virtual bool exec() = 0;
 };
 
 } // namespace MLVP::RefPack

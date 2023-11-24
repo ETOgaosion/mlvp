@@ -299,8 +299,8 @@ public:
      * @todo consider whether make transaction transfering function independent as Channel midware
      * 
      */
-    std::map<std::pair<std::string, std::string>, std::vector<std::pair<TransactionReq, std::optional<TransactionResp>>>> dutUserTransactions;
-    std::map<std::pair<std::string, std::string>, std::vector<std::pair<TransactionReq, std::optional<TransactionResp>>>> refUserTransactions;
+    std::map<std::pair<std::string, std::string>, std::vector<std::pair<TransactionReq, std::vector<TransactionResp>>>> dutUserTransactions;
+    std::map<std::pair<std::string, std::string>, std::vector<std::pair<TransactionReq, std::vector<TransactionResp>>>> refUserTransactions;
 
     Transaction() = delete;
     ~Transaction() = default;
@@ -426,9 +426,9 @@ public:
      */
     TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
         if (reqId == -1) {
-            return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.value() : dutUserTransactions[std::make_pair(src, dest)].back().second.value();
+            return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.back() : dutUserTransactions[std::make_pair(src, dest)].back().second[0];
         }
-        return fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second.value() : dutUserTransactions[std::make_pair(dest, src)][reqId].second.value();
+        return fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second.back() : dutUserTransactions[std::make_pair(dest, src)][reqId].second.back();
     }
 
     /**
@@ -442,7 +442,7 @@ public:
      * @return false 
      */
     bool checkResponseExistence(const std::string &src, const std::string &dest, int index, bool fromRef) {
-        return fromRef ? refUserTransactions[std::make_pair(dest, src)][index].second.has_value() : dutUserTransactions[std::make_pair(dest, src)][index].second.has_value();
+        return fromRef ? refUserTransactions[std::make_pair(dest, src)][index].second.size() : dutUserTransactions[std::make_pair(dest, src)][index].second.size();
     }
 
     /**
