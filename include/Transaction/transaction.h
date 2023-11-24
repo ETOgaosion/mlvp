@@ -373,7 +373,7 @@ public:
      * @param outSignal response port - data signal
      * @param fromRef whether the response is from 0 - dut or 1 - ref
      */
-    void addResponse(TransactionReq &req, MLVP::Type::PortsData outSignal, bool fromRef);
+    void addResponse(TransactionReq &req, MLVP::Type::PortsData outSignal, bool fromRef, bool burst);
 
     /**
      * @brief check whether there is a request from src to dest
@@ -421,14 +421,22 @@ public:
      * @param src 
      * @param dest 
      * @param reqId 
+     * @param respId
      * @param fromRef 
      * @return const TransactionResp& 
      */
-    TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+    TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, int respId, bool fromRef) {
         if (reqId == -1) {
-            return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.back() : dutUserTransactions[std::make_pair(src, dest)].back().second[0];
+            if (respId == -1) {
+                return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.back() : dutUserTransactions[std::make_pair(src, dest)].back().second.back();
+            }
         }
-        return fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second.back() : dutUserTransactions[std::make_pair(dest, src)][reqId].second.back();
+        if (respId == -1) {
+            return fromRef ? refUserTransactions[std::make_pair(src, dest)][reqId].second.back() : dutUserTransactions[std::make_pair(src, dest)][reqId].second.back();
+        }
+        else {
+            return fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second[respId] : dutUserTransactions[std::make_pair(dest, src)][reqId].second[respId];
+        }
     }
 
     /**

@@ -56,7 +56,7 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     }
 }
 
-void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef) {
+void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef, bool burst) {
     lock_guard<mutex> lock(transactionMutex);
     auto modulePair = make_pair(req.src, req.dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
@@ -65,7 +65,17 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
     }
     auto &transactionItem = userTransaction[modulePair][req.id];
     TransactionResp resp(make_shared<TransactionReq>(transactionItem.first), req.dest, req.src, std::move(outSignal));
-    transactionItem.second.push_back(std::move(resp));
+    if (burst) {
+        transactionItem.second.emplace_back(resp);
+    }
+    else {
+        if (transactionItem.second.empty()) {
+            transactionItem.second.emplace_back(resp);
+        }
+        else {
+            transactionItem.second.back() = std::move(resp);
+        }
+    }
     transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.back()));
     transactionItem.first.setDone();
 }
@@ -104,7 +114,10 @@ vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bo
                 throw runtime_error("Transaction response not found");
             }
             else {
-                transactionResp.emplace_back(transactionItems.second.value());
+                ranges::all_of(transactionItems.second, [&transactionResp](TransactionResp &resp) {
+                    transactionResp.emplace_back(resp);
+                    return true;
+                });
             }
         }
     }
@@ -132,14 +145,20 @@ bool Transaction::compareRefDutResponse(const std::string &src, const std::strin
         throw std::runtime_error("Transaction response not found");
     }
     if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(src, dest, true)) {
-        ranges::all_of(dutUserTransactions[modulePair][dutReqId].second, [this, &src, &dest, &dutReqId, &refReqId, modulePair](TransactionResp &resp) {
-            return MLVP::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][dutReqId].first.inSignal, resp.outSignal);
-        });
+        for (int i = 0; i < dutUserTransactions[modulePair][dutReqId].second.size(); i++) {
+            if (!MLVP::Evaluator::Evaluator::getInstance().eval(src, dest, true, dutUserTransactions[modulePair][dutReqId].first.inSignal, dutUserTransactions[modulePair][dutReqId].second[i].outSignal)) {
+                return false;
+            }
+        }
         return true;
     }
     else {
-        ranges
-        return dutUserTransactions[modulePair][dutReqId].second.back().outSignal == refUserTransactions[modulePair][refReqId].second.value().outSignal;
+        for (int i = 0; i < dutUserTransactions[modulePair][dutReqId].second.size(); i++) {
+            if (dutUserTransactions[modulePair][dutReqId].second[i].outSignal != refUserTransactions[modulePair][refReqId].second[i].outSignal) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 
@@ -148,14 +167,24 @@ bool Transaction::compareRefDutResponse(const TransactionReq &req) {
     if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
         throw std::runtime_error("Transaction request not found");
     }
-    if (!dutUserTransactions[modulePair][req.id].second.has_value() || !refUserTransactions[modulePair][req.id].second.has_value()) {
+    if (dutUserTransactions[modulePair][req.id].second.empty() || refUserTransactions[modulePair][req.id].second.empty()) {
         throw std::runtime_error("Transaction response not found");
     }
     if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(req.src, req.dest, true)) {
-        return MLVP::Evaluator::Evaluator::getInstance().eval(req.src, req.dest, true, dutUserTransactions[modulePair][req.id].first.inSignal, dutUserTransactions[modulePair][req.id].second.value().outSignal);
+        for (int i = 0; i < dutUserTransactions[modulePair][req.id].second.size(); i++) {
+            if (!MLVP::Evaluator::Evaluator::getInstance().eval(req.src, req.dest, true, dutUserTransactions[modulePair][req.id].first.inSignal, dutUserTransactions[modulePair][req.id].second[i].outSignal)) {
+                return false;
+            }
+        }
+        return true;
     }
     else {
-        return dutUserTransactions[modulePair][req.id].second.value().outSignal == refUserTransactions[modulePair][req.id].second.value().outSignal;
+        for (int i = 0; i < dutUserTransactions[modulePair][req.id].second.size(); i++) {
+            if (dutUserTransactions[modulePair][req.id].second[i].outSignal != refUserTransactions[modulePair][req.id].second[i].outSignal) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 

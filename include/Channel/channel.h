@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -55,14 +56,21 @@ public:
         return data.contains(inName);
     }
 
-    void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse) {
+    void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse, bool burst) {
         //!< Notice that merge will not cover the raw elements, so we need to reverse
-        std::swap(data, inData);
-        data.merge(inData);
+        if (burst) {
+            for (auto &i : inData) {
+                multiData.insert(std::make_pair(i.first, i.second));
+            }
+        }
+        else {
+            std::swap(data, inData);
+            data.merge(inData);
+        }
         if (toTransaction) {
             if (inIsResponse) {
                 auto &req = transaction->getRequest("source", "dest", -1, fromRef);
-                transaction->addResponse(req, inData, fromRef);
+                transaction->addResponse(req, inData, fromRef, burst);
             }
             else {
                 transaction->addRequest(source, destination, inData, fromRef);
@@ -77,6 +85,14 @@ public:
     }
 
     MLVP::Type::Data getData(const std::string &inName, bool &exist) {
+        if (multiData.contains(inName)) {
+            exist = true;
+            auto startData = multiData.find(inName);
+            auto ret = startData->second;
+            multiData.erase(startData);
+            return ret;
+        
+        }
         if (data.contains(inName)) {
             exist = true;
             return data[inName];
