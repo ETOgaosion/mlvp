@@ -11,17 +11,18 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 #include "Drivers/driverModel.h"
 #include "Drivers/simulatorDriver.h"
 #include "Transaction/transaction.h"
-#include <vector>
 
 namespace MLVP::Driver {
 class TransDriver : public DriverModel {
 private:
-    std::shared_ptr<DriverModel> unit; //!< Actually a UnitDriver Child Implemented by user
-    int simulatorSetIndex;
-    std::vector<std::string> simulatorNames;
+    std::shared_ptr<DriverModel> unit; //! Actually a UnitDriver Child Implemented by user
+    std::unordered_map<std::string, std::shared_ptr<DriverModel>> simulatorDrivers; //! Actually a SimulatorDriver Child Implemented by user
 
 public:
     TransDriver() = delete;
@@ -33,32 +34,27 @@ public:
      * @param in class inherited from UnitDriver
      * @param inSimulatorDrivers must be new object, different with simulatorDrivers in RefUnitDriver
      */
-    TransDriver(std::unique_ptr<DriverModel> in, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : unit(std::move(in)), simulatorSetIndex(inSimulatorSetIndex), simulatorNames(std::move(inSimulatorNames)) {
-        for (auto &simulatorName : simulatorNames) {
-            auto simuDriver = SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(inSimulatorSetIndex, false, simulatorName);
+    TransDriver(std::unique_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : unit(std::move(in)), simulatorDrivers(std::move(inSimulatorDrivers)) {
+        for (auto &simulatorDriver : simulatorDrivers) {
             bool res;
-            //!< unitUnit: unitUnit -> simulator
-            auto channel = unit->addChannel(false, unit->getName(), unit, simulatorName, simuDriver, res);
+            //! unitUnit: unitUnit -> simulator
+            auto channel = unit->addChannel(false, unit->getName(), unit, simulatorDriver.first, simulatorDriver.second, res);
             if (!res) {
                 throw std::runtime_error("Error: add channel failed");
             }
-            //!< simulator: unitUnit -> simulator
-            simuDriver->addChannel(unit->getName(), simulatorName, channel);
-            //!< simulator: simulator -> unitUnit
-            channel = simuDriver->addChannel(false, simulatorName, simuDriver, unit->getName(), unit, res);
-            //!< unitUnit: simulator -> unitUnit
-            unit->addChannel(simulatorName, unit->getName(), channel);
+            //! simulator: unitUnit -> simulator
+            simulatorDriver.second->addChannel(unit->getName(), simulatorDriver.first, channel);
+            //! simulator: simulator -> unitUnit
+            channel = simulatorDriver.second->addChannel(false, simulatorDriver.first, simulatorDriver.second, unit->getName(), unit, res);
             if (!res) {
                 throw std::runtime_error("Error: add channel failed");
             }
+            //! unitUnit: simulator -> unitUnit
+            unit->addChannel(simulatorDriver.first, unit->getName(), channel);
         }
     }
 
     std::string getName() override { return unit->getName(); }
-
-    [[nodiscard]] int getSimulatorSetIndex() const { return simulatorSetIndex; }
-
-    [[nodiscard]] const std::vector<std::string> &getSimulatorNames() const { return simulatorNames; }
 
     std::shared_ptr<DriverModel> getUnit() { return unit; }
 
@@ -94,8 +90,8 @@ public:
             return ret;
         }
         else {
-            for (auto &simulatorName : simulatorNames) {
-                ret = SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, false, simulatorName)->getChannel(inSourceName, inDestName, res);
+            for (auto &simulatorDriver : simulatorDrivers) {
+                ret = simulatorDriver.second->getChannel(inSourceName, inDestName, res);
                 if (res) {
                     return ret;
                 }

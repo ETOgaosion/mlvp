@@ -12,7 +12,7 @@
 /**
  * @mainpage MLVP Documentation
  *
- * **MLVP** is a  M**ulti-**L**anguage **V**erification **P**latform, which is a framework for multi-language verification, coding in C++
+ * <b>MLVP</b> is a  <b>M</b>ulti-<b>L</b>anguage <b>V</b>erification <b>P</b>latform, which is a framework for multi-language verification, coding in C++
  *
  * @section intro_sec Introduction
  *
@@ -23,19 +23,17 @@
  * @image html MLVP_BareDut.png
  * 
  */
-
-#include "Channel/channel.h"
-#include "Drivers/driver.h"
-#include "Drivers/driverModel.h"
-#include "Drivers/refDriver.h"
 #include "Drivers/simulatorDriver.h"
 #include "Library/types.h"
-#include "RefPack/ref.h"
+#include "Reporter/reporter.h"
 #include "Transaction/transaction.h"
 #include "mlvp.h"
 #include "MCVPack/BareDut/NutshellCache/Vnutshellcache.h"
 #include <cassert>
+#include <memory>
+#include <optional>
 #include <random>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -47,7 +45,7 @@
  */
 
 enum class SimpleBusCmd : Data {
-    //!< req
+    //! req
     read        = 0b0000,
     write       = 0b0001,
     readBurst   = 0b0010,
@@ -56,7 +54,7 @@ enum class SimpleBusCmd : Data {
     prob        = 0b1000,
     prefetch    = 0b0100,
 
-    //!< resp
+    //! resp
     readLast    = 0b0110,
     writeResp   = 0b0101,
     probHit     = 0b1100,
@@ -71,11 +69,11 @@ private:
 public:
     DutCacheDriver(int inDriverID, const string& inLogPath) : DutUnitDriver("cacheDut", inDriverID, inLogPath), top(make_unique<Vnutshellcache>(contextp.get(), "top")) {
         contextp->debug(0);
-        //!< [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
+        //! [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
         contextp->randReset(0);
         top->clock = 1;
         top->trace(tfp.get(), 99);
-        //!< this should be called after trace
+        //! this should be called after trace
         tfp->open((logPath + "/memory.vcd").c_str());
     }
 
@@ -87,13 +85,13 @@ public:
             bool hasData = false;
             contextp->timeInc(1);
 
-            //!< assign input signals
-            //!< c_if
+            //! assign input signals
+            //! c_if
             top->clock = !top->clock;
             top->reset = transaction->getInSignal("reset");
             top->io_flush = transaction->getInSignal("io_flush");
 
-            //!< in_if
+            //! in_if
             top->io_in_req_valid = transaction->getInSignal("io_in_req_valid");
             top->io_in_req_bits_addr = transaction->getInSignal("io_in_req_bits_addr");
             top->io_in_req_bits_size = transaction->getInSignal("io_in_req_bits_size");
@@ -101,14 +99,15 @@ public:
             top->io_in_req_bits_wmask = transaction->getInSignal("io_in_req_bits_wmask");
             top->io_in_req_bits_wdata = transaction->getInSignal("io_in_req_bits_wdata");
             top->io_in_req_bits_user = transaction->getInSignal("io_in_req_bits_user");
+            top->io_in_resp_ready = 1;
 
-            //!< mem_if
+            //! mem_if
             top->io_out_mem_req_ready = channels[make_pair("cacheDut", "memoryDut")]->getData("mem_req_ready", hasData);
             top->io_out_mem_resp_valid = channels[make_pair("cacheDut", "memoryDut")]->getData("mem_resp_valid", hasData);
             top->io_out_mem_resp_bits_cmd = channels[make_pair("cacheDut", "memoryDut")]->getData("mem_resp_bits_cmd", hasData);
             top->io_out_mem_resp_bits_rdata = channels[make_pair("cacheDut", "memoryDut")]->getData("mem_resp_bits_rdata", hasData);
 
-            //!< coh_if
+            //! coh_if
             top->io_out_coh_req_valid = 0;
             top->io_out_coh_req_bits_addr = 0;
             top->io_out_coh_req_bits_size = 0;
@@ -117,22 +116,28 @@ public:
             top->io_out_coh_req_bits_wdata = 0;
             top->io_out_coh_resp_ready = 0;
 
-            //!< mmio_if
+            //! mmio_if
             top->io_mmio_req_ready = channels[make_pair("cacheDut", "mmioDut")]->getData("mmio_req_ready", hasData);
             top->io_mmio_resp_valid = channels[make_pair("cacheDut", "mmioDut")]->getData("mmio_resp_valid", hasData);
             top->io_mmio_resp_bits_cmd = channels[make_pair("cacheDut", "mmioDut")]->getData("mmio_resp_bits_cmd", hasData);
             top->io_mmio_resp_bits_rdata = channels[make_pair("cacheDut", "mmioDut")]->getData("mmio_resp_bits_rdata", hasData);
 
-            //!< evaluate model
+            //! evaluate model
             top->eval();
-            //!< generate trace
+            //! generate trace
             tfp->dump(contextp->time());
 
-            //!< assign output signals
-            //!< c_if
+            // a cycle is down and up, so eval twice
+            contextp->timeInc(1);
+            top->clock = !top->clock;
+            top->eval();
+            tfp->dump(contextp->time());
+
+            //! assign output signals
+            //! c_if
             transaction->setOutSignal("io_empty", top->io_empty, false);
 
-            //!< in_if
+            //! in_if
             transaction->setOutSignal("io_in_req_ready", top->io_in_req_ready, false);
             if (top->io_in_resp_ready && top->io_in_resp_valid) {
                 transaction->setOutSignal("io_in_resp_valid", top->io_in_resp_valid, false);
@@ -142,7 +147,7 @@ public:
                 transaction->transactionItems.setDone(false);
             }
 
-            //!< mem_if
+            //! mem_if
             if (top->io_out_mem_req_ready && top->io_out_mem_req_valid) {
                 channels[make_pair("cacheDut", "memoryDut")]->setData({
                     {"mem_req_valid", top->io_out_mem_req_valid},
@@ -154,7 +159,7 @@ public:
                 }, true, false, false);
             }
 
-            //!< mmio_if
+            //! mmio_if
             if (top->io_mmio_req_ready && top->io_mmio_req_valid) {
                 channels[make_pair("cacheDut", "mmioDut")]->setData({
                     {"mmio_req_valid", top->io_mmio_req_valid},
@@ -169,7 +174,7 @@ public:
             channels[make_pair("cacheDut", "cacheRef")]->setData({{"victimWaymask", top->victimWaymask}}, false, false, false);
 
             if (isLast) {
-                //!< don't know why tfp dump lose last cycle
+                //! don't know why tfp dump lose last cycle
                 contextp->timeInc(1);
                 top->clock = !top->clock;
                 top->eval();
@@ -178,7 +183,7 @@ public:
                 top->clock = !top->clock;
                 top->eval();
                 tfp->dump(contextp->time());
-                //!< output coverage
+                //! output coverage
                 Verilated::mkdir(logPath.c_str());
                 contextp->coveragep()->write((logPath + "/coverage.dat").c_str());
                 tfp->close();
@@ -186,7 +191,7 @@ public:
             }
             return true;
         }
-        //!< reach test end
+        //! reach test end
         return false;
     }
 };
@@ -199,9 +204,9 @@ public:
 class RefCache : public Ref {
 private:
     bool cacheEmpty = false;
-    //!< **Notice that C++ vector<bool> implemented different from other vector, cannot use reference**, we use vector<char> instead
+    //! <b>Notice that C++ vector<bool> implemented different from other vector, cannot use reference</b>, we use vector<char> instead
     vector<vector<char>> cacheValid = vector<vector<char>>(128, vector<char>(4, 0));
-    //!< **Notice that C++ vector<bool> implemented different from other vector, cannot use reference**, we use vector<char> instead
+    //! <b>Notice that C++ vector<bool> implemented different from other vector, cannot use reference</b>, we use vector<char> instead
     vector<vector<char>> cacheDirty = vector<vector<char>>(128, vector<char>(4, 0));
     vector<vector<Data>> cacheTag = vector<vector<Data>>(128, vector<Data>(4, 0));
     vector<vector<vector<Data>>> cacheData = vector<vector<vector<Data>>>(128, vector<vector<Data>>(4, vector<Data>(8, 0)));
@@ -269,7 +274,7 @@ public:
 
     static Data bytesmask2bitsmask(char bytemask) {
         Data bitmask = 0;
-        //!< betther than sv solution
+        //! betther than sv solution
         for (int i = 0; i < 8; i++) {
             if (bytemask & (0x1 << i)) {
                 bitmask |= (0xff << (i * 8));
@@ -288,7 +293,7 @@ public:
      */
     bool exec() override {
         bool hasData = false;
-        //!< reset
+        //! reset
         if (transaction->getInSignal("reset")) {
             reset();
         }
@@ -333,7 +338,7 @@ public:
             }
         }
 
-        //!< miss
+        //! miss
         if (hitId == -1) {
             int victimId = -1;
             for (int i = 3; i >= 0; i--) {
@@ -342,26 +347,26 @@ public:
                     break;
                 }
             }
-            //!< need evict
+            //! need evict
             if (victimId  == -1) {
                 victimId = mask2index((int)(*channels)[make_pair("cacheDut", "cacheRef")]->getData("victimWaymask", hasData));
                 if (cacheDirty[reqSetId][victimId]) {
                     write_back((int)reqSetId, victimId);
                 }
             }
-            //!< fetch data
+            //! fetch data
             fetch(addr, victimId, (int)reqWordId);
             needRefill = true;
             hitId = victimId;
         }
 
-        //!< write cache
+        //! write cache
         if (inCmd == static_cast<Data>(SimpleBusCmd::write) || inCmd == static_cast<Data>(SimpleBusCmd::writeBurst) || inCmd == static_cast<Data>(SimpleBusCmd::writeLast)) {
             cacheDirty[reqSetId][hitId] = 1;
             cacheData[reqSetId][hitId][reqWordId] = (cacheData[reqSetId][hitId][reqWordId] & ~bitmask) | (inWdata & bitmask);
         }
 
-        //!< send response
+        //! send response
         transaction->setOutSignal("io_in_resp_valid", 1, true);
         transaction->setOutSignal("io_in_resp_bits_user", inUser, true);
         transaction->setOutSignal("io_empty", cacheEmpty, true);
@@ -418,14 +423,13 @@ public:
  */
 class SimulatorMemory : public Simulator {
 private:
-    mt19937 rng;
     string from;
     string to;
 
 public:
     SimulatorMemory() = delete;
     ~SimulatorMemory() override = default;
-    SimulatorMemory(bool inConnectToRef, const shared_ptr<ChannelsType>& inChannels, const shared_ptr<Transaction>& inTransaction) : from(inConnectToRef ? "cacheRef" : "cacheDut"), to(inConnectToRef ? "memoryRef" : "memoryDut"), Simulator(inConnectToRef, inConnectToRef ? "memoryRef" : "memoryDut", inChannels, inTransaction), rng(chrono::system_clock::now().time_since_epoch().count()) {
+    SimulatorMemory(bool inConnectToRef, const shared_ptr<ChannelsType>& inChannels, const shared_ptr<Transaction>& inTransaction) : from(inConnectToRef ? "cacheRef" : "cacheDut"), to(inConnectToRef ? "memoryRef" : "memoryDut"), Simulator(inConnectToRef, inConnectToRef ? "memoryRef" : "memoryDut", inChannels, inTransaction) {
         (*channels)[make_pair(from, to)]->setData({{"memory_req_ready", true}}, false, false, false);
     }
 
@@ -437,13 +441,13 @@ public:
             for (int i = 0; i < 7; i++) {
                 (*channels)[make_pair(from, to)]->setData({
                     {"mem_resp_valid", true},
-                    {"mem_resp_bits_rdata", (Data)rng()},
+                    {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
                     {"mem_resp_bits_cmd", 0}
                 }, true, true, true);
             }
             (*channels)[make_pair(from, to)]->setData({
                 {"mem_resp_valid", true},
-                {"mem_resp_bits_rdata", (Data)rng()},
+                {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
                 {"mem_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::readLast)}
             }, true, true, true);
         }
@@ -461,7 +465,6 @@ public:
 
 class SimulatorMMIO : public Simulator {
 private:
-    mt19937 rng;
     string from;
     string to;
 
@@ -469,7 +472,7 @@ private:
 public:
     SimulatorMMIO() = delete;
     ~SimulatorMMIO() override = default;
-    SimulatorMMIO(bool inConnectToRef, const shared_ptr<ChannelsType>& inChannels, const shared_ptr<Transaction>& inTransaction) : from(inConnectToRef ? "cacheRef" : "cacheDut"), to(inConnectToRef ? "mmioRef" : "mmioDut"), Simulator(inConnectToRef, inConnectToRef ? "mmioRef" : "mmioDut", inChannels, inTransaction), rng(chrono::system_clock::now().time_since_epoch().count()) {}
+    SimulatorMMIO(bool inConnectToRef, const shared_ptr<ChannelsType>& inChannels, const shared_ptr<Transaction>& inTransaction) : from(inConnectToRef ? "cacheRef" : "cacheDut"), to(inConnectToRef ? "mmioRef" : "mmioDut"), Simulator(inConnectToRef, inConnectToRef ? "mmioRef" : "mmioDut", inChannels, inTransaction) {}
 
     bool exec() override {
         bool hasData = false;
@@ -478,7 +481,7 @@ public:
         if (cmd == static_cast<int>(SimpleBusCmd::read)) {
             (*channels) [make_pair(from, to)]->setData({
                 {"mmio_resp_valid", true},
-                {"mmio_resp_bits_rdata", (Data)rng()},
+                {"mmio_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
                 {"mmio_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::readLast)}
             }, true, true, false);
         }
@@ -524,7 +527,146 @@ public:
 
 };
 
+// ===================== Generate Tests =====================
+/**
+ * @brief You can use an enum to describe tests functions
+ * 
+ */
+enum class TestPoint {
+    READ_ONCE,
+    READ_MEMORY,
+    WRITE_MEMORY,
+    READWRITE_MEMORY,
+    MMIO,
+    RESET,
+    SEQ,
+    ALL
+};
+
+/**
+ * @brief We recommend you use a function to encapsulation your tests generation
+ * 
+ * @param testPoint 
+ * @return const shared_ptr<SerialTestSet>& 
+ */
+const shared_ptr<SerialTestSet> &generateTest(TestPoint testPoint) {
+    //! instance the models
+    shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
+    PortSpecGeneratorModel model(userTests);
+
+    //! add ports default spec
+    //! direct input value is the default value
+    model.addPortTestSpecDefault("reset", GeneratorType::DIRECT_INPUT, 0);
+    model.addPortTestSpecDefault("io_flush", GeneratorType::DIRECT_INPUT, 0);
+    model.addPortTestSpecDefault("io_in_req_valid", GeneratorType::DIRECT_INPUT, 1);
+    //! random generator value is the bit width
+    model.addPortTestSpecDefault("io_in_req_bits_addr", GeneratorType::RANDOM_GENERATOR, 32);
+    model.addPortTestSpecDefault("io_in_req_bits_size", GeneratorType::RANDOM_GENERATOR, 3);
+    model.addPortTestSpecDefault("io_in_req_bits_cmd", GeneratorType::RANDOM_GENERATOR, 1);
+    model.addPortTestSpecDefault("io_in_req_bits_wmask", GeneratorType::RANDOM_GENERATOR, 8);
+    model.addPortTestSpecDefault("io_in_req_bits_wdata", GeneratorType::RANDOM_GENERATOR, 64);
+    model.addPortTestSpecDefault("io_in_req_bits_user", GeneratorType::RANDOM_GENERATOR, 16);
+
+    //! add ports detailed spec
+    switch (testPoint) {
+    case TestPoint::READ_ONCE: {
+        model.setSize(2);
+        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 1, 1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b00111);
+        }, nullopt);
+        break;
+    }
+    case TestPoint::READ_MEMORY: {
+        model.setSize(100001);
+        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        //! endIndex can be negative to count down value, convinient isn't it?
+        //! for random generator mode, first element of vector is max value
+        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
+        }, nullopt);
+        break;
+    }
+    case TestPoint::WRITE_MEMORY: {
+        model.setSize(100001);
+        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
+        }, nullopt);
+        break;
+    }
+    case TestPoint::READWRITE_MEMORY: {
+        model.setSize(100001);
+        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        //! a trick: sv use cmd[3:1] == 3'b000, so only last elements is random, whole value can only be 0 or 1
+        model.addPortTestSpec("io_in_req_bits_cmd", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
+        }, nullopt);
+        break;
+    }
+    case TestPoint::MMIO: {
+        model.setSize(100001);
+        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        //! a trick: use constrain to filter value is too slow, may retry many timers, use post handler is much faster, one time generate
+        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), nullopt, [](Data data) {
+            if (RandomGenerator::getInstance().getRandomData(1)) {
+                return data | (0b01 << 30) | (RandomGenerator::getInstance().getRandomData(3) << 28);
+            } else {
+                return data | (0b0011 << 28);
+            }
+        });
+        break;
+    }
+    case TestPoint::RESET: {
+        model.setSize(100000);
+        for (int i = 0; i < 1000; i++) {
+            model.addPortTestSpec("reset", i * 100, i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        }
+        model.addPortTestSpec("io_in_req_bits_cmd", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
+        break;
+    }
+    case TestPoint::SEQ: {
+        model.setSize(20000 * 2 + 2);
+        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        SerialData addr;
+        for (int i = 0; i < 20000; i++) {
+            addr.push_back(i);
+        }
+        model.addPortTestSpec("io_in_req_bits_addr", 1, 20000, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("reset", 20001, 20001, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 20002, -1, GeneratorType::DIRECT_INPUT, addr);
+        break;
+    }
+    case TestPoint::ALL: {
+        model.setSize(40000 * 4 + 2);
+        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        SerialData addr;
+        for (int i = 0; i < 40000; i++) {
+            addr.push_back(i);
+        }
+        model.addPortTestSpec("io_in_req_bits_addr", 1, 40000, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("reset", 40001, 40001, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 40002, 80001, GeneratorType::DIRECT_INPUT, addr);
+        for (int i = 0; i < 1000; i++) {
+            model.addPortTestSpec("reset", 120002 + i * 100, 120002 + i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        }
+        break;
+    }
+    default:
+        throw runtime_error("Not implemented TestPoint");
+        break;
+    }
+    return userTests->getTests();
+}
 
 int main() {
+    TransactionLauncher::setupTransaction(generateTest(TestPoint::READ_ONCE));
+    std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> simuDrivers = {
+        {make_pair(make_shared<MemorySimulatorDriver>(false), make_shared<MemorySimulatorDriver>(true))},
+        {make_pair(make_shared<MMIOSimulatorDriver>(false), make_shared<MMIOSimulatorDriver>(true))}
+    };
+    SimulatorlDriverRegistrar::getInstance().registerSimulatorDriver(simuDrivers);
+    Spreader<DutCacheDriver, RefCacheDriver, VerilatorReporter> spreader("log", "report", {"memory", "mmio"});
     return 0;
 }

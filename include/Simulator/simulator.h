@@ -28,7 +28,7 @@ class Simulator
 protected:
     bool connectToRef;
     std::string name;
-    std::shared_ptr<ChannelsType> channels; //!< <dest name, Channel<DriverModel>>
+    std::shared_ptr<ChannelsType> channels; //! <dest name, Channel<DriverModel>>
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
 
 public:

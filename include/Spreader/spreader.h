@@ -36,17 +36,12 @@ public:
     Spreader() = delete;
     ~Spreader() = default;
 
-    Spreader(std::string inUnitName, std::string inLogPath, std::string inReportPath, int inSimulatorMaxIndex, std::vector<std::string> inSimulatorNames) : reporter(std::make_unique<TReport>(inLogPath, inReportPath)) {
-        if (inSimulatorMaxIndex != MLVP::Database::TransactionDatabase::getInstance().getTransactionSize()) {
-            throw std::runtime_error("SimulatorMaxIndex not match with TransactionDatabase");
-        }
-        if (inSimulatorMaxIndex != inSimulatorNames.size()) {
-            throw std::runtime_error("SimulatorMaxIndex not match with SimulatorNames");
-        }
+    Spreader(std::string inLogPath, std::string inReportPath, std::vector<std::string> inSimulatorNames) : reporter(std::make_unique<TReport>(inLogPath, inReportPath)) {
         driver.clear();
         threadsPools.clear();
-        for (int i = 0; i < inSimulatorMaxIndex; i++) {
-            driver.emplace_back(MLVP::Database::TransactionDatabase::getInstance().getTransaction(i), std::make_unique<TDut>(inUnitName, i, inLogPath), std::make_unique<TRef>(inUnitName, i, inLogPath), inSimulatorMaxIndex, inSimulatorNames);
+        auto inSize = inSimulatorNames.size();
+        for (int i = 0; i < inSize; i++) {
+            driver.emplace_back(MLVP::Database::TransactionDatabase::getInstance().getTransaction(i), std::make_unique<TDut>(i, inLogPath), std::make_unique<TRef>(i, inLogPath), inSize, inSimulatorNames);
             inSimulatorNames.clear();
             errorMsgsPool.push_back(std::make_shared<std::string>(""));
         }

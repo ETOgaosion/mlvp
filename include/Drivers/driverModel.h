@@ -28,7 +28,7 @@ class DriverModel {
 protected:
     std::string name;
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
-    std::map<std::pair<std::string, std::string>, std::shared_ptr<MLVP::Channel::Channel<DriverModel>>> channels; //!< <dest name, Channel<DriverModel>>
+    std::map<std::pair<std::string, std::string>, std::shared_ptr<MLVP::Channel::Channel<DriverModel>>> channels; //! <dest name, Channel<DriverModel>>
     
 
 public:

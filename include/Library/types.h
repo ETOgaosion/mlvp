@@ -29,8 +29,8 @@ typedef std::vector<Data> SerialData;
  * @example 
  * {
  *  {
- *     {port1_data, port2_data, port3_data},    //!< 1st transaction
- *     {port1_data, port2_data, port3_data},    //!< 2nd transaction
+ *     {port1_data, port2_data, port3_data},    //! 1st transaction
+ *     {port1_data, port2_data, port3_data},    //! 2nd transaction
  *   }
  * }
  * 
@@ -40,7 +40,7 @@ typedef std::vector<SerialData> SerialDatasSet;
 /**
  * @brief This one's basic unit is one port multiple data, we use it to compress memory consumption
  * @example
- * {                //!< 1st transaction | 2nd transaction
+ * {                //! 1st transaction | 2nd transaction
  *  { "port1_name": {trans1_data,        trans2_data} }
  *  { "port2_name": {trans1_data,        trans2_data} }
  * }

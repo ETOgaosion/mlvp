@@ -23,6 +23,10 @@
 #include "RefPack/ref.h"
 #include "TestGenerator/generatorHelper.h"
 #include "Spreader/spreader.h"
+#include "Library/utils.h"
+#include "Library/error.h"
+#include "Library/types.h"
+#include "Reporter/reporter.h"
 
 using namespace std;
 using namespace MLVP::Type;
@@ -35,3 +39,4 @@ using namespace MLVP::TestGenerator;
 using namespace MLVP::Transaction;
 using namespace MLVP::Reporter;
 using namespace MLVP::RefPack;
+using namespace MLVP::Library;

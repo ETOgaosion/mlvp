@@ -35,9 +35,9 @@ class Channel {
 private:
     bool fromRef;
     std::string source;
-    std::shared_ptr<T> sourceDriver; //!< source driver, actually a UnitDriver Child
+    std::shared_ptr<T> sourceDriver; //! source driver, actually a UnitDriver Child
     std::string destination;
-    std::shared_ptr<T> destDriver; //!< dest driver, actually a UnitDriver Child
+    std::shared_ptr<T> destDriver; //! dest driver, actually a UnitDriver Child
     MLVP::Type::PortsData data;
     std::multimap<std::string, MLVP::Type::Data> multiData;
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
@@ -57,7 +57,7 @@ public:
     }
 
     void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse, bool burst) {
-        //!< Notice that merge will not cover the raw elements, so we need to reverse
+        //! Notice that merge will not cover the raw elements, so we need to reverse
         if (burst) {
             for (auto &i : inData) {
                 multiData.insert(std::make_pair(i.first, i.second));
@@ -74,11 +74,11 @@ public:
             }
             else {
                 transaction->addRequest(source, destination, inData, fromRef);
-                //!< sync start response thread
+                //! sync start response thread
                 auto responseFuture = std::async(std::launch::async, [this]{
                     destDriver->drivingStep(false);
                 });
-                //!< wait for response, just stall for some cycles, wait for data income
+                //! wait for response, just stall for some cycles, wait for data income
                 // responseFuture.get();
             }
         }

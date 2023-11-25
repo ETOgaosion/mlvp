@@ -34,7 +34,7 @@ private:
     std::string name;
 
 protected:
-    std::shared_ptr<ChannelsType> channels; //!< <dest name, Channel<DriverModel>>
+    std::shared_ptr<ChannelsType> channels; //! <dest name, Channel<DriverModel>>
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
 
 public:

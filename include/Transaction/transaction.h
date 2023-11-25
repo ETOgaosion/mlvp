@@ -493,7 +493,7 @@ private:
 public:
     TransactionLauncher() = delete;
 
-    static int setupTransaction(std::vector<MLVP::Type::PortsData> dataSet);
+    static int setupTransaction(const std::shared_ptr<MLVP::Type::SerialTestSet> &dataSet);
 
 };
 

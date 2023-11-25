@@ -17,6 +17,7 @@
 #include <vector>
 #include "Database/database.h"
 #include "Library/error.h"
+#include "Library/types.h"
 
 using namespace std;
 using namespace MLVP::Transaction;
@@ -224,12 +225,18 @@ bool Transaction::compareRefDut(int type) {
 }
 
 
-int TransactionLauncher::setupTransaction(vector<PortsData> dataSet) {
+int TransactionLauncher::setupTransaction(const shared_ptr<SerialTestSet> &dataSet) {
     vector<shared_ptr<Transaction>> transactions;
-    transactions.reserve(dataSet.size());
-    for (auto &test : dataSet) {
-        transactions.push_back(make_shared<Transaction>(test));
+    transactions.reserve(dataSet->size());
+    for (int i = 0; i < dataSet->begin()->size(); i++) {
+        PortsData portsData;
+        for (auto &test : *dataSet) {
+            for (auto &port : test) {
+                portsData[port.first] = port.second[i];
+            }
+        }
+        transactions.push_back(make_shared<Transaction>(portsData));
     }
     TransactionDatabase::getInstance().addTransaction(transactions);
-    return (int)dataSet.size();
+    return (int)dataSet->size();
 }

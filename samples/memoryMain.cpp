@@ -21,11 +21,11 @@ private:
 public:
     DutMemoryDriver(int inDriverID, string inLogPath, shared_ptr<Transaction> inTransaction) : DutUnitDriver(inDriverID, inLogPath, inTransaction), top(std::make_unique<Vmemory>(contextp.get(), "top")) {
         contextp->debug(0);
-        //!< [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
+        //! [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
         contextp->randReset(0);
         top->clk = 1;
         top->trace(tfp.get(), 99);
-        //!< this should be called after trace
+        //! this should be called after trace
         tfp->open((logPath + "/memory.vcd").c_str());
     }
 
@@ -34,7 +34,7 @@ public:
         if(!contextp->gotFinish()) {
             contextp->timeInc(1);
 
-            //!< assign input signals
+            //! assign input signals
             top->clk = !top->clk;
             top->reset = transaction->getInSignal()[testPtr][0];
             top->addr = transaction->getInSignal()[testPtr][1];
@@ -42,18 +42,18 @@ public:
             top->rd_en = transaction->getInSignal()[testPtr][3];
             top->wdata = transaction->getInSignal()[testPtr][4];
 
-            //!< evaluate model
+            //! evaluate model
             top->eval();
-            //!< generate trace
+            //! generate trace
             tfp->dump(contextp->time());
 
-            //!< assign output signals
+            //! assign output signals
             transaction->setDutOutSignal(testPtr, {top->rdata});
             
             testPtr++;
 
             if (testPtr == transaction->getTestsSize() - 1) {
-                //!< don't know why tfp dump lose last cycle
+                //! don't know why tfp dump lose last cycle
                 contextp->timeInc(1);
                 top->clk = !top->clk;
                 top->eval();
@@ -62,7 +62,7 @@ public:
                 top->clk = !top->clk;
                 top->eval();
                 tfp->dump(contextp->time());
-                //!< output coverage
+                //! output coverage
                 Verilated::mkdir(logPath.c_str());
                 contextp->coveragep()->write((logPath + "/coverage.dat").c_str());
                 tfp->close();
@@ -70,7 +70,7 @@ public:
             }
             return true;
         }
-        //!< reach test end
+        //! reach test end
         return false;
     }
 };
@@ -121,24 +121,24 @@ public:
 
     /* just execute one test */
     bool drivingStep(bool isLast) override {
-        //!< assign input signals
+        //! assign input signals
         top->reset = transaction->getInSignal()[testPtr][0];
         top->addr = transaction->getInSignal()[testPtr][1];
         top->wr_en = transaction->getInSignal()[testPtr][2];
         top->rd_en = transaction->getInSignal()[testPtr][3];
         top->wdata = transaction->getInSignal()[testPtr][4];
 
-        //!< evaluate model
+        //! evaluate model
         top->eval();
 
-        //!< assign output signals
+        //! assign output signals
         transaction->setRefOutSignal(testPtr, {top->rdata});
         return true;
     }
 };
 
 int main() {
-    //!< Generate Tests
+    //! Generate Tests
     shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
 
     PortSpecGeneratorModel portSpecGeneratorModel(userTests);
@@ -153,7 +153,7 @@ int main() {
     }
 
 
-    //!< Execution
+    //! Execution
     TransactionLauncher::setupTransaction(1000, userTests->getTests());
     Spreader<DutMemoryDriver, RefMemoryDriver, VerilatorReporter> spreader("log/memory", "report/memory");
     spreader.execute();

@@ -11,10 +11,12 @@
 
 #include "TestGenerator/generatorHelper.h"
 
+#include <functional>
 #include <iostream>
 #include <utility>
 
 #include "Database/database.h"
+#include "Library/utils.h"
 
 using namespace std;
 using namespace MLVP::Type;
@@ -73,7 +75,7 @@ bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, Ge
     return true;
 }
 
-bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, GeneratorType inGeneratorType, Data inValue, function<Data(Data)> inPostHandler) {
+bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, GeneratorType inGeneratorType, Data inValue, optional<function<bool(Data)>> inConstrain, optional<function<Data(Data)>> inPostHandler) {
     if (!size) {
         throw runtime_error("PortSpecGeneratorModel > Size is not set");
     }
@@ -86,7 +88,7 @@ bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, Ge
         }
     }
     else {
-        portTestSpecDefaults[inPortName] = PortTestSpecDefault(inPortName, inGeneratorType, inValue, std::move(inPostHandler));
+        portTestSpecDefaults[inPortName] = PortTestSpecDefault(inPortName, inGeneratorType, inValue, std::move(inConstrain), std::move(inPostHandler));
     }
     return true;
 }
@@ -147,8 +149,20 @@ bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, in
         portTestSpecs[portName].back().value = value;
     }
     else {
-        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType)));
+        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value)));
+    }
+    return res;
+}
+
+bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const SerialData &value, optional<function<bool(Data)>> inConstrain, optional<function<Data(Data)>> inPostHandler) {
+    bool res = true;
+    if (portTestSpecs.contains(portName)) {
+        res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
+        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, inConstrain, inPostHandler);
         portTestSpecs[portName].back().value = value;
+    }
+    else {
+        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value, inConstrain, inPostHandler)));
     }
     return res;
 }
@@ -169,9 +183,12 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
             break;
         case GeneratorType::RANDOM_GENERATOR:
         {
-            uniform_int_distribution<Data> dist(0, portSpec.second.value);
             for (int i = 0; i < size; i++) {
-                SerialTest[portSpec.second.portName][i] = portSpec.second.postHandler(dist(rng));
+                Data randVal = RandomGenerator::getInstance().getRandomData(portSpec.second.maxVal);
+                while (!portSpec.second.constrain(randVal)) {
+                    randVal = RandomGenerator::getInstance().getRandomData(portSpec.second.maxVal);
+                }
+                SerialTest[portSpec.second.portName][i] = portSpec.second.postHandler(randVal);
             }
         }
             break;
@@ -198,9 +215,12 @@ void PortSpecGeneratorModel::generateSerialTest(bool autoclear) {
                 break;
             case GeneratorType::RANDOM_GENERATOR:
             {
-                uniform_int_distribution<Data> dist(0, spec.value[0]);
                 for (int i = spec.startIndex; i <= spec.endIndex; i++) {
-                    SerialTest[spec.portName][i] = spec.postHandler(dist(rng));
+                    Data randVal = RandomGenerator::getInstance().getRandomData(spec.maxVal);
+                    while (!spec.constrain(randVal)) {
+                        randVal = RandomGenerator::getInstance().getRandomData(spec.maxVal);
+                    }
+                    SerialTest[spec.portName][i] = spec.postHandler(randVal);
                 }
             }
                 break;

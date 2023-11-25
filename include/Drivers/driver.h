@@ -25,8 +25,8 @@
 namespace MLVP::Driver {
 class Driver {
 private:
-    std::shared_ptr<DutTransDriver> dutDriver; //!< Actual Type is DutTransDriver
-    std::shared_ptr<RefTransDriver> refDriver; //!< Actual Type is RefTransDriver
+    std::shared_ptr<DutTransDriver> dutDriver; //! Actual Type is DutTransDriver
+    std::shared_ptr<RefTransDriver> refDriver; //! Actual Type is RefTransDriver
     int transPtr = 0;
     std::vector<std::shared_ptr<MLVP::Transaction::Transaction>> transactions;
 
@@ -61,7 +61,7 @@ public:
         }
         dutDriver->addChannel(refName, dutName, channel);
 
-        //!< can add Sync Channel between these, it depends on requirements
+        //! can add Sync Channel between these, it depends on requirements
         // auto dutSimuIndex = dutDriver->getSimulatorSetIndex();
         // auto refSimuIndex = refDriver->getSimulatorSetIndex();
         // auto dutSimuNames = dutDriver->getSimulatorNames();

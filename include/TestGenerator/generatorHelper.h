@@ -20,6 +20,7 @@
 #include <unordered_map>
 #include <functional>
 #include <chrono>
+#include <cmath>
 
 #include "Library/error.h"
 #include "Library/types.h"
@@ -53,13 +54,53 @@ enum class GeneratorType {
 
 struct PortTestSpecDefault {
     std::string portName;
+    MLVP::Type::Data maxVal;
     GeneratorType generatorType;
     MLVP::Type::Data value;
+    std::function<bool(MLVP::Type::Data)> constrain;
     std::function<MLVP::Type::Data(MLVP::Type::Data)> postHandler;
 
     PortTestSpecDefault() = delete;
-    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue) { postHandler = [](MLVP::Type::Data in) { return in; }; }
-    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue, std::function<MLVP::Type::Data(MLVP::Type::Data)> inPostHandler) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue), postHandler(std::move(inPostHandler)) {}
+    /**
+     * @brief Construct a new Port Test Spec Default object
+     * 
+     * @param inPortName 
+     * @param inGeneratorType 
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be seen as the <b>width</b> of this port, convert from verilog [max : 0] to max + 1
+     */
+    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue) {
+        if (generatorType == GeneratorType::RANDOM_GENERATOR) {
+            maxVal = (MLVP::Type::Data)std::pow(2, inValue) - 1;
+        }
+        constrain = [](MLVP::Type::Data in) { return true; };
+        postHandler = [](MLVP::Type::Data in) { return in; };
+    }
+    /**
+     * @brief Construct a new Port Test Spec Default object
+     * 
+     * @param inPortName 
+     * @param inGeneratorType 
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be seen as the <b>bit width</b> of this port, convert from verilog [max : 0] to max + 1
+     * @param inConstrain if value not satisfy, generate again
+     * @param inPostHandler post handle the value
+     */
+    PortTestSpecDefault(std::string inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler) : portName(std::move(inPortName)), generatorType(inGeneratorType), value(inValue) {
+        if (generatorType == GeneratorType::RANDOM_GENERATOR) {
+            maxVal = (MLVP::Type::Data)std::pow(2, inValue) - 1;
+        }
+        if (inConstrain.has_value()) {
+            constrain = inConstrain.value();
+        }
+        else {
+            constrain = [](MLVP::Type::Data in) { return true; };
+        }
+        if (inPostHandler.has_value()) {
+            postHandler = inPostHandler.value();
+        }
+        else {
+            postHandler = [](MLVP::Type::Data in) { return in; };
+        }
+    }
 };
 
 struct PortTestSpec {
@@ -67,45 +108,63 @@ struct PortTestSpec {
     GeneratorType generatorType;
     int startIndex;
     int endIndex;
-    std::vector<MLVP::Type::Data> value;
+    MLVP::Type::Data maxVal;
+    MLVP::Type::SerialData value;
+    std::function<bool(MLVP::Type::Data)> constrain;
     std::function<MLVP::Type::Data(MLVP::Type::Data)> postHandler;
 
     PortTestSpec() = delete;
-    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType) { postHandler = [](MLVP::Type::Data in) { return in; }; }
-    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, std::function<MLVP::Type::Data(MLVP::Type::Data)> inPostHandler) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), postHandler(std::move(inPostHandler)) {}
+    /**
+     * @brief Construct a new Port Test Spec object
+     * 
+     * @param inPortName 
+     * @param inStartIndex 
+     * @param inEndIndex 
+     * @param inGeneratorType 
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be seen as the <b>width</b> of this port, convert with verilog [max : 0]'s max + 1
+     */
+    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, MLVP::Type::SerialData inValue) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), value(std::move(inValue)) {
+        if (generatorType == GeneratorType::RANDOM_GENERATOR) {
+            maxVal = (MLVP::Type::Data)std::pow(2, value.front()) - 1;
+        }
+        constrain = [](MLVP::Type::Data in) { return true; };
+        postHandler = [](MLVP::Type::Data in) { return in; };
+    }
+    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, MLVP::Type::SerialData inValue, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), value(std::move(inValue)) {
+        if (generatorType == GeneratorType::RANDOM_GENERATOR) {
+            maxVal = (MLVP::Type::Data)std::pow(2, value.front()) - 1;
+        }
+        if (inConstrain.has_value()) {
+            constrain = inConstrain.value();
+        }
+        else {
+            constrain = [](MLVP::Type::Data in) { return true; };
+        }
+        if (inPostHandler.has_value()) {
+            postHandler = inPostHandler.value();
+        }
+        else {
+            postHandler = [](MLVP::Type::Data in) { return in; };
+        }
+    }
     ~PortTestSpec() = default;
 };
 
 class PortSpecGeneratorModel {
 private:
     std::shared_ptr<GeneratedUserTest> middleContents;
-    std::unordered_map<std::string, PortTestSpecDefault> portTestSpecDefaults; //!< Defailt Spec for each port, we strongly recommend you to set this to avoid mistakes and undefined behaviors
-    std::unordered_map<std::string, std::vector<PortTestSpec>> portTestSpecs; //!< Detailed Spec for each port, will cover the default settings
+    std::unordered_map<std::string, PortTestSpecDefault> portTestSpecDefaults; //! Defailt Spec for each port, we strongly recommend you to set this to avoid mistakes and undefined behaviors
+    std::unordered_map<std::string, std::vector<PortTestSpec>> portTestSpecs; //! Detailed Spec for each port, will cover the default settings
     int size;
-    std::mt19937 rng;
 
 public:
     PortSpecGeneratorModel() = delete;
-    explicit PortSpecGeneratorModel(const std::shared_ptr<GeneratedUserTest>&inMiddleContents) : size(0), middleContents(inMiddleContents), rng(std::chrono::system_clock::now().time_since_epoch().count()) {}
+    explicit PortSpecGeneratorModel(const std::shared_ptr<GeneratedUserTest>&inMiddleContents) : size(0), middleContents(inMiddleContents) {}
+    explicit PortSpecGeneratorModel(int inSize, const std::shared_ptr<GeneratedUserTest>&inMiddleContents) : size(inSize), middleContents(inMiddleContents) {}
     ~PortSpecGeneratorModel() = default;
 
     bool setSize(int inSize);
 
-    /**
-     * @brief generate default spec for transaction port
-     * 
-     * @param inPortName transaction port name
-     * @param inGeneratorType refer to
-     * ```cpp
-     * enum class GeneratorType {
-     *      DIRECT_INPUT = 0,
-     *      RANDOM_GENERATOR = 1
-     *  };
-     * ```
-     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as <b>range max + 1 in random generator</b>
-     * @return true pass check
-     * @return false not pass check
-     */
     bool addPortTestSpecDefault(const std::string &inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue);
 
     /**
@@ -119,12 +178,13 @@ public:
      *      RANDOM_GENERATOR = 1
      *  };
      * ```
-     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be used as <b>range max + 1 in random generator</b>
+     * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be seen as the <b>width</b> of this port, convert with verilog [max : 0]'s max + 1
+     * @param inConstrain constrain, if value not satisfy, generate again
      * @param inPostHandler postHandler function of value
      * @return true pass check
      * @return false not pass check
      */
-    bool addPortTestSpecDefault(const std::string &inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue, std::function<MLVP::Type::Data(MLVP::Type::Data)> inPostHandler);
+    bool addPortTestSpecDefault(const std::string &inPortName, GeneratorType inGeneratorType, MLVP::Type::Data inValue, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler);
 
     /**
      * @brief Check PortTestSpec validity
@@ -134,7 +194,7 @@ public:
      * @return false invalid
      */
     bool checkPortSpec(PortTestSpec &portTestSpec);
-    
+
     /**
      * @brief Check PortTestSpec validity, splite struct above
      * 
@@ -165,11 +225,32 @@ public:
      * @param startIndex from which index in serialTest
      * @param endIndex to which index in serialTest, <b>include</b>
      * @param generatorType GeneratorType
-     * @param value if generator type is DIRECT_INPUT, this value will be used as default value, else the first element will be used as <b>range max + 1 in random generator</b>
+     * @param value 
+     * - if generator type is DIRECT_INPUT, this value will be used as default value, 
+     * - if you want to set one value for all, just use the first element of the vector
+     * - if generator type is RANDOM_GENERATOR the first element will be seen as 
      * @return true 
      * @return false 
      */
     bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MLVP::Type::SerialData &value);
+
+    /**
+     * @brief add detailed spec for transaction port
+     * @details 
+     * 1. index must be in order
+     * 2. not have to cover whole range, use default value for the rest flexibly
+     * 
+     * @param portName transaction port name, <b>take effect in [startIndex, endIndex]</b>
+     * @param startIndex from which index in serialTest
+     * @param endIndex to which index in serialTest, <b>include</b>
+     * @param generatorType GeneratorType
+     * @param value if generator type is DIRECT_INPUT, this value will be used as default value, else the first element will be used as <b>range max + 1 in random generator</b>
+     * @param inConstrain constrain, if value not satisfy, generate again
+     * @param inPostHandler postHandler function of value
+     * @return true 
+     * @return false 
+     */
+    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MLVP::Type::SerialData &value, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler);
 
     /**
      * @brief Generate serial test according to the spec
