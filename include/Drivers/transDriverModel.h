@@ -29,7 +29,7 @@ public:
     ~TransDriver() override = default;
 
     /**
-     * @brief Construct a new  Trans Driver object
+     * @brief Construct a new Trans Driver object
      * 
      * @param in class inherited from UnitDriver
      * @param inSimulatorDrivers must be new object, different with simulatorDrivers in RefUnitDriver
@@ -72,14 +72,17 @@ public:
 
     bool addChannel(const std::string &inSourceName, const std::string& inDestName, const std::shared_ptr<MLVP::Channel::Channel<DriverModel>>& inChannel) override {
         bool res = true;
-        res &= unit->addChannel(inSourceName, inDestName, inChannel);
+        res = unit->addChannel(inSourceName, inDestName, inChannel);
         if (!res) {
-            throw std::runtime_error("Error: add channel failed");
-            return false;
-        }
-        res &= SimulatorlDriverRegistrar::getInstance().getSimulatorDriver(simulatorSetIndex, false, inDestName)->addChannel(inSourceName, inDestName, inChannel);
-        if (!res) {
-            throw std::runtime_error("Error: add channel failed");
+            for (auto &simulatorDriver : simulatorDrivers) {
+                res = simulatorDriver.second->addChannel(inSourceName, inDestName, inChannel);
+                if (res) {
+                    break;
+                }
+            }
+            if (!res) {
+                throw std::runtime_error("Error: add channel failed");
+            }
         }
         return res;
     }

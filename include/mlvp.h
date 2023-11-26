@@ -27,6 +27,7 @@
 #include "Library/error.h"
 #include "Library/types.h"
 #include "Reporter/reporter.h"
+#include "Evaluator/evaluate.h"
 
 using namespace std;
 using namespace MLVP::Type;
@@ -37,6 +38,7 @@ using namespace MLVP::Driver;
 using namespace MLVP::Simulator;
 using namespace MLVP::TestGenerator;
 using namespace MLVP::Transaction;
+using namespace MLVP::Evaluator;
 using namespace MLVP::Reporter;
 using namespace MLVP::RefPack;
 using namespace MLVP::Library;

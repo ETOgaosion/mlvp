@@ -59,7 +59,7 @@ class DutTransDriver : public TransDriver {
 public:
     DutTransDriver() = delete;
     ~DutTransDriver() override = default;
-    DutTransDriver(std::unique_ptr<DriverModel> in, int inSimulatorSetIndex, std::vector<std::string> inSimulatorNames) : TransDriver(std::move(in), inSimulatorSetIndex, std::move(inSimulatorNames)) {}
+    DutTransDriver(std::unique_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : TransDriver(std::move(in), std::move(inSimulatorDrivers)) {}
 
 };
 

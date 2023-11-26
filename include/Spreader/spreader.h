@@ -36,13 +36,27 @@ public:
     Spreader() = delete;
     ~Spreader() = default;
 
-    Spreader(std::string inLogPath, std::string inReportPath, std::vector<std::string> inSimulatorNames) : reporter(std::make_unique<TReport>(inLogPath, inReportPath)) {
+    /**
+     * @brief Construct a new Spreader object
+     * 
+     * @param inLogPath 
+     * @param inReportPath 
+     * @param inSimulatorDrivers this is a complex data structure, consider example below:
+     *
+     * ```txt
+     * {
+     *   <{{"memoryDut": dutMemoryDriver1}, {"mmioDut": dutMmioDriver1}}, {{"memoryRef": refMemoryDriver1}, {"mmioRef": refMmioDriver1}}>,
+     *   ....
+     * }
+     * ```
+     *
+     */
+    Spreader(std::string inLogPath, std::string inReportPath, std::vector<std::pair<std::unordered_map<std::string, std::shared_ptr<MLVP::Driver::DriverModel>>, std::unordered_map<std::string, std::shared_ptr<MLVP::Driver::DriverModel>>>> inSimulatorDrivers) : reporter(std::make_unique<TReport>(inLogPath, inReportPath)) {
         driver.clear();
         threadsPools.clear();
-        auto inSize = inSimulatorNames.size();
+        auto inSize = inSimulatorDrivers.size();
         for (int i = 0; i < inSize; i++) {
-            driver.emplace_back(MLVP::Database::TransactionDatabase::getInstance().getTransaction(i), std::make_unique<TDut>(i, inLogPath), std::make_unique<TRef>(i, inLogPath), inSize, inSimulatorNames);
-            inSimulatorNames.clear();
+            driver.emplace_back(MLVP::Database::TransactionDatabase::getInstance().getTransaction(i), std::make_unique<TDut>(i, inLogPath), std::make_unique<TRef>(i, inLogPath), inSimulatorDrivers[i].first, inSimulatorDrivers[i].second);
             errorMsgsPool.push_back(std::make_shared<std::string>(""));
         }
     }

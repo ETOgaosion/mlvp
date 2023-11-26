@@ -71,6 +71,10 @@ public:
                 return {};
             }
         }
+        if (inSource != name && inDestination != name) {
+            res = false;
+            return {};
+        }
         channels[pair] = std::make_shared<MLVP::Channel::Channel<DriverModel>>(inFromRef, inSource, inSourceDriver, inDestination, inDestDriver);
         res = true;
         return channels[pair];
