@@ -75,8 +75,7 @@ public:
             res = false;
             return {};
         }
-        channels[pair] = std::make_shared<MLVP::Channel::Channel<DriverModel>>(inFromRef, inSource, inSourceDriver, inDestination, inDestDriver);
-        res = true;
+        channels.emplace(pair, std::make_shared<MLVP::Channel::Channel<DriverModel>>(inFromRef, inSource, inSourceDriver, inDestination, inDestDriver));
         return channels[pair];
     }
 
@@ -90,7 +89,7 @@ public:
                 return false;
             }
         }
-        channels[pair] = inChannel;
+        channels.emplace(pair, inChannel);
         return true;
     }
 

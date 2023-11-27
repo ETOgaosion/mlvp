@@ -75,9 +75,14 @@ public:
             else {
                 transaction->addRequest(source, destination, inData, fromRef);
                 //! sync start response thread
-                auto responseFuture = std::async(std::launch::async, [this]{
+                if (USE_THREADS) {
+                    auto responseFuture = std::async(std::launch::async, [this]{
+                        destDriver->drivingStep(false);
+                    });
+                }
+                else {
                     destDriver->drivingStep(false);
-                });
+                }
                 //! wait for response, just stall for some cycles, wait for data income
                 // responseFuture.get();
             }

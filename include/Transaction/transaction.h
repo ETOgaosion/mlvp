@@ -98,7 +98,7 @@ public:
             }
             return false;
         }
-        inSignal[portName] = data;
+        inSignal.emplace(portName, data);
         return true;
     }
 
@@ -161,7 +161,7 @@ public:
                 }
                 return;
             }
-            refOutSignal[portName] = data;
+            refOutSignal.emplace(portName, data);
         }
         else {
             dutStatus = TransactionReqStatus::DONE;
@@ -171,7 +171,7 @@ public:
                 }
                 return;
             }
-            dutOutSignal[portName] = data;
+            dutOutSignal.emplace(portName, data);
         }
     }
 
@@ -201,6 +201,10 @@ public:
 
     TransactionReq(int inId, std::string inSrc, std::string inDest) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW) { inSignal.clear(); }
     TransactionReq(int inId, std::string inSrc, std::string inDest, MLVP::Type::PortsData  newInSignal) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW), inSignal(std::move(newInSignal)) {}
+
+    bool operator==(const TransactionReq &req) const {
+        return id == req.id && src == req.src && dest == req.dest;
+    }
 
     bool isNew() {
         return status == TransactionReqStatus::NEW;
@@ -247,6 +251,10 @@ struct TransactionResp {
     TransactionResp(const std::shared_ptr<TransactionReq>&inReq, std::string inSrc, std::string inDest) : req(inReq), id(inReq->id), src(std::move(inSrc)), dest(std::move(inDest)) { outSignal.clear(); }
     TransactionResp(const std::shared_ptr<TransactionReq>&inReq, std::string inSrc, std::string inDest, MLVP::Type::PortsData inOutSignal) : req(inReq), id(inReq->id), src(std::move(inSrc)), dest(std::move(inDest)), outSignal(std::move(inOutSignal)) {}
 
+    bool operator==(const TransactionResp &resp) const {
+        return id == resp.id && src == resp.src && dest == resp.dest;
+    }
+
     void setOutSignal(MLVP::Type::PortsData inOutSignal) {
         outSignal = std::move(inOutSignal);
     }
@@ -258,7 +266,7 @@ struct TransactionResp {
             }
             return;
         }
-        outSignal[portName] = data;
+        outSignal.emplace(portName, data);
     }
 
     MLVP::Type::Data getOutSignal(const std::string &portName) {

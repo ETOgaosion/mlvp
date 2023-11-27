@@ -19,5 +19,5 @@ using namespace MLVP::Type;
 
 void Evaluator::registerEval(const string &inSrc, const string &inDest, bool isResponse, function<bool(MLVP::Type::PortsData, MLVP::Type::PortsData)> inEvalFunc) {
     auto evalKey = make_tuple(inSrc, inDest, isResponse);
-    userEvalSet[evalKey] = std::move(inEvalFunc);
+    userEvalSet.emplace(evalKey, inEvalFunc);
 }

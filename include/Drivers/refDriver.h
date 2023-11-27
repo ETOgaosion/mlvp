@@ -45,7 +45,7 @@ class RefTransDriver : public TransDriver {
 public:
     RefTransDriver() = delete;
     ~RefTransDriver() override = default;
-    RefTransDriver(std::unique_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : TransDriver(std::move(in), std::move(inSimulatorDrivers)) {}
+    RefTransDriver(std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : TransDriver(std::move(in), std::move(inSimulatorDrivers)) {}
 };
 
 

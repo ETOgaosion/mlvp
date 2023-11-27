@@ -31,12 +31,12 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (userTransaction.contains(modulePair)) {
         TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest, inSignal);
-        userTransaction[modulePair].emplace_back(req, nullopt);
+        userTransaction[modulePair].emplace_back(make_pair(req, vector<TransactionResp>({})));
         return userTransaction[modulePair].back().first;
     }
     else {
         TransactionReq req(0, inSrc, inDest, inSignal);
-        userTransaction[modulePair] = vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())};
+        userTransaction.emplace(modulePair, vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())});
         return userTransaction[modulePair].back().first;
     }
 }
@@ -47,12 +47,12 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (userTransaction.contains(modulePair)) {
         TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest);
-        userTransaction[modulePair].emplace_back(req, nullopt);
+        userTransaction[modulePair].emplace_back(make_pair(req, vector<TransactionResp>({})));
         return userTransaction[modulePair].back().first;
     }
     else {
         TransactionReq req(0, inSrc, inDest);
-        userTransaction[modulePair] = vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())};
+        userTransaction.emplace(modulePair, vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())});
         return userTransaction[modulePair].back().first;
     }
 }
@@ -232,7 +232,7 @@ int TransactionLauncher::setupTransaction(const shared_ptr<SerialTestSet> &dataS
         PortsData portsData;
         for (auto &test : *dataSet) {
             for (auto &port : test) {
-                portsData[port.first] = port.second[i];
+                portsData.emplace(port.first, port.second[i]);
             }
         }
         transactions.push_back(make_shared<Transaction>(portsData));

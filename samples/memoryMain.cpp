@@ -16,10 +16,10 @@
 
 class DutMemoryDriver : public DutUnitDriver {
 private:
-    const unique_ptr<Vmemory> top;
+    const shared_ptr<Vmemory> top;
 
 public:
-    DutMemoryDriver(int inDriverID, string inLogPath, shared_ptr<Transaction> inTransaction) : DutUnitDriver(inDriverID, inLogPath, inTransaction), top(std::make_unique<Vmemory>(contextp.get(), "top")) {
+    DutMemoryDriver(int inDriverID, string inLogPath, shared_ptr<Transaction> inTransaction) : DutUnitDriver(inDriverID, inLogPath, inTransaction), top(std::make_shared<Vmemory>(contextp.get(), "top")) {
         contextp->debug(0);
         //! [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
         contextp->randReset(0);
@@ -112,12 +112,12 @@ public:
 
 class RefMemoryDriver : public RefUnitDriver {
 private:
-    unique_ptr<RefMemory> top;
+    shared_ptr<RefMemory> top;
 
 public:
     RefMemoryDriver() = delete;
     ~RefMemoryDriver() = default;
-    RefMemoryDriver(shared_ptr<Transaction> inTransaction) : RefUnitDriver(inTransaction), top(make_unique<RefMemory>()) {}
+    RefMemoryDriver(shared_ptr<Transaction> inTransaction) : RefUnitDriver(inTransaction), top(make_shared<RefMemory>()) {}
 
     /* just execute one test */
     bool drivingStep(bool isLast) override {

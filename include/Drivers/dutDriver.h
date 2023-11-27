@@ -30,15 +30,15 @@
 namespace MLVP::Driver {
 class DutUnitDriver : public MLVP::Driver::DriverModel {
 protected:
-    const std::unique_ptr<VerilatedContext> contextp;
-    const std::unique_ptr<VerilatedVcdC> tfp;
+    const std::shared_ptr<VerilatedContext> contextp;
+    const std::shared_ptr<VerilatedVcdC> tfp;
     std::string logPath;
     
 public:
     DutUnitDriver() = delete;
     ~DutUnitDriver() override = default;
 
-    DutUnitDriver(std::string inUnitName, int inDriverID, const std::string &inLogPath) : DriverModel(std::move(inUnitName)), logPath(inLogPath + "/Driver" + std::to_string(inDriverID)), contextp(std::make_unique<VerilatedContext>()), tfp(std::make_unique<VerilatedVcdC>()) {
+    DutUnitDriver(std::string inUnitName, int inDriverID, const std::string &inLogPath) : DriverModel(std::move(inUnitName)), logPath(inLogPath + "/Driver" + std::to_string(inDriverID)), contextp(std::make_shared<VerilatedContext>()), tfp(std::make_shared<VerilatedVcdC>()) {
         std::filesystem::create_directories(logPath);
         Verilated::traceEverOn(true);
         contextp->traceEverOn(true);
@@ -59,7 +59,7 @@ class DutTransDriver : public TransDriver {
 public:
     DutTransDriver() = delete;
     ~DutTransDriver() override = default;
-    DutTransDriver(std::unique_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : TransDriver(std::move(in), std::move(inSimulatorDrivers)) {}
+    DutTransDriver(std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : TransDriver(std::move(in), std::move(inSimulatorDrivers)) {}
 
 };
 

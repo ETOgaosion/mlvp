@@ -33,7 +33,7 @@ private:
     std::mutex userTestMutex;
 
 public:
-    GeneratedUserTest() : userTest(std::make_unique<MLVP::Type::SerialTestSet>()) {}
+    GeneratedUserTest() : userTest(std::make_shared<MLVP::Type::SerialTestSet>()) {}
     ~GeneratedUserTest() = default;
 
     void addSerialTest(const MLVP::Type::SerialTest &testSet);

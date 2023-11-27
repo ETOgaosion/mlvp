@@ -54,7 +54,7 @@ public:
     int registerSimulatorDriver(const std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> &inDriverModels) {
         driverModels.emplace_back();
         for (auto &driver : inDriverModels) {
-            driverModels.back()[driver.first->getName()] = driver;
+            driverModels.back().emplace(driver.first->getName(), driver);
         }
         return (int)driverModels.size() - 1;
     }

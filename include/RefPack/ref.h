@@ -34,14 +34,14 @@ private:
     std::string name;
 
 protected:
-    std::shared_ptr<ChannelsType> channels; //! <dest name, Channel<DriverModel>>
+    ChannelsType &channels; //! <dest name, Channel<DriverModel>>
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
 
 public:
     Ref() = delete;
     virtual ~Ref() = default;
 
-    Ref(std::string inName, std::shared_ptr<ChannelsType> inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : name(std::move(inName)), channels(std::move(inChannels)), transaction(std::move(inTransaction)) {}
+    Ref(std::string inName, ChannelsType &inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : name(std::move(inName)), channels(inChannels), transaction(std::move(inTransaction)) {}
 
     virtual bool exec() = 0;
 };

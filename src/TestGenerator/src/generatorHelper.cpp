@@ -70,7 +70,7 @@ bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, Ge
         }
     }
     else {
-        portTestSpecDefaults[inPortName] = PortTestSpecDefault(inPortName, inGeneratorType, inValue);
+        portTestSpecDefaults.emplace("inPortName", PortTestSpecDefault(inPortName, inGeneratorType, inValue));
     }
     return true;
 }
@@ -88,7 +88,7 @@ bool PortSpecGeneratorModel::addPortTestSpecDefault(const string &inPortName, Ge
         }
     }
     else {
-        portTestSpecDefaults[inPortName] = PortTestSpecDefault(inPortName, inGeneratorType, inValue, std::move(inConstrain), std::move(inPostHandler));
+        portTestSpecDefaults.emplace("inPortName", PortTestSpecDefault(inPortName, inGeneratorType, inValue, std::move(inConstrain), std::move(inPostHandler)));
     }
     return true;
 }
@@ -145,7 +145,7 @@ bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, in
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
-        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType);
+        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, value);
         portTestSpecs[portName].back().value = value;
     }
     else {
@@ -158,7 +158,7 @@ bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, in
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
-        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, inConstrain, inPostHandler);
+        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, value, inConstrain, inPostHandler);
         portTestSpecs[portName].back().value = value;
     }
     else {

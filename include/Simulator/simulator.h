@@ -28,14 +28,14 @@ class Simulator
 protected:
     bool connectToRef;
     std::string name;
-    std::shared_ptr<ChannelsType> channels; //! <dest name, Channel<DriverModel>>
+    ChannelsType &channels; //! <dest name, Channel<DriverModel>>
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
 
 public:
     Simulator() = delete;
     virtual ~Simulator() = default;
 
-    explicit Simulator(bool inConnectToRef, std::string inName, std::shared_ptr<ChannelsType> inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : connectToRef(inConnectToRef), name(std::move(inName)), channels(std::move(inChannels)), transaction(std::move(inTransaction)) {}
+    explicit Simulator(bool inConnectToRef, std::string inName, ChannelsType &inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : connectToRef(inConnectToRef), name(std::move(inName)), channels(inChannels), transaction(std::move(inTransaction)) {}
 
     /**
      * @brief Use return value to check if transaction is done
