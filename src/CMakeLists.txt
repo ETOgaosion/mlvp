@@ -26,18 +26,18 @@ $<TARGET_OBJECTS:TestGenerator>
 ${SRC}
 )
 
-add_library(mlvp-lib SHARED 
-$<TARGET_OBJECTS:Config>
-$<TARGET_OBJECTS:Database>
-$<TARGET_OBJECTS:Transaction>
-$<TARGET_OBJECTS:Drivers>
-$<TARGET_OBJECTS:Simulator>
-$<TARGET_OBJECTS:Evaluator>
-# $<TARGET_OBJECTS:Library>
-$<TARGET_OBJECTS:Reporter>
-$<TARGET_OBJECTS:Spreader>
-$<TARGET_OBJECTS:TestGenerator>
-)
+# add_library(mlvp-lib SHARED 
+# $<TARGET_OBJECTS:Config>
+# $<TARGET_OBJECTS:Database>
+# $<TARGET_OBJECTS:Transaction>
+# $<TARGET_OBJECTS:Drivers>
+# $<TARGET_OBJECTS:Simulator>
+# $<TARGET_OBJECTS:Evaluator>
+# # $<TARGET_OBJECTS:Library>
+# $<TARGET_OBJECTS:Reporter>
+# $<TARGET_OBJECTS:Spreader>
+# $<TARGET_OBJECTS:TestGenerator>
+# )
 
 if (${CMAKE_BUILD_TYPE} STREQUAL "Debug")
     verilate(mlvp SOURCES ${PROJECT_SOURCE_DIR}/design/NutshellCache/nutshellcache.v TOP_MODULE Cache COVERAGE OPT_SLOW TRACE)

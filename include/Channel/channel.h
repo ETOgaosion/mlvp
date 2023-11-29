@@ -48,6 +48,8 @@ public:
 
     Channel(bool inFromRef, std::string inSource, std::shared_ptr<T> inSourceDriver, std::string inDestination, std::shared_ptr<T> inDestDriver) : fromRef(inFromRef), source(std::move(inSource)), sourceDriver(std::move(inSourceDriver)), destination(std::move(inDestination)), destDriver(std::move(inDestDriver)) { data.clear(); }
 
+    bool getFromRef() { return fromRef; }
+
     void setTransaction(std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) {
         transaction = std::move(inTransaction);
     }

@@ -22,7 +22,7 @@
 
 namespace MLVP::RefPack {
 
-typedef std::map<std::pair<std::string, std::string>, std::shared_ptr<MLVP::Channel::Channel<MLVP::Driver::DriverModel>>> ChannelsType;
+typedef std::map<std::tuple<std::string, std::string, bool>, std::shared_ptr<MLVP::Channel::Channel<MLVP::Driver::DriverModel>>> ChannelsType;
 
 /**
  * @brief Use only when you want to implement a ref driven by cycles, transaction handler logic implemented in refUnitDriver is OK

@@ -20,9 +20,12 @@
  *
  * @section arch_sec Architecture
  *
+ * This is our architecture
+ *
  * @image html MLVP_BareDut.png
  * 
  */
+#include "Channel/channel.h"
 #include "Drivers/driverModel.h"
 #include "Drivers/simulatorDriver.h"
 #include "Evaluator/evaluate.h"
@@ -76,7 +79,7 @@ public:
         top->clock = 1;
         top->trace(tfp.get(), 99);
         //! this should be called after trace
-        tfp->open((logPath + "/memory.vcd").c_str());
+        tfp->open((logPath + "/cache.vcd").c_str());
     }
 
     /**
@@ -104,10 +107,10 @@ public:
             top->io_in_resp_ready = 1;
 
             //! mem_if
-            top->io_out_mem_req_ready = channels[make_pair("memory", "cache")]->getData("mem_req_ready", hasData);
-            top->io_out_mem_resp_valid = channels[make_pair("cache", "memory")]->getData("mem_resp_valid", hasData);
-            top->io_out_mem_resp_bits_cmd = channels[make_pair("cache", "memory")]->getData("mem_resp_bits_cmd", hasData);
-            top->io_out_mem_resp_bits_rdata = channels[make_pair("cache", "memory")]->getData("mem_resp_bits_rdata", hasData);
+            top->io_out_mem_req_ready = channels[make_tuple("memory", "cache", false)]->getData("mem_req_ready", hasData);
+            top->io_out_mem_resp_valid = channels[make_tuple("cache", "memory", false)]->getData("mem_resp_valid", hasData);
+            top->io_out_mem_resp_bits_cmd = channels[make_tuple("cache", "memory", false)]->getData("mem_resp_bits_cmd", hasData);
+            top->io_out_mem_resp_bits_rdata = channels[make_tuple("cache", "memory", false)]->getData("mem_resp_bits_rdata", hasData);
 
             //! coh_if
             top->io_out_coh_req_valid = 0;
@@ -119,10 +122,10 @@ public:
             top->io_out_coh_resp_ready = 0;
 
             //! mmio_if
-            top->io_mmio_req_ready = channels[make_pair("mmio", "cache")]->getData("mmio_req_ready", hasData);
-            top->io_mmio_resp_valid = channels[make_pair("cache", "mmio")]->getData("mmio_resp_valid", hasData);
-            top->io_mmio_resp_bits_cmd = channels[make_pair("cache", "mmio")]->getData("mmio_resp_bits_cmd", hasData);
-            top->io_mmio_resp_bits_rdata = channels[make_pair("cache", "mmio")]->getData("mmio_resp_bits_rdata", hasData);
+            top->io_mmio_req_ready = channels[make_tuple("mmio", "cache", false)]->getData("mmio_req_ready", hasData);
+            top->io_mmio_resp_valid = channels[make_tuple("cache", "mmio", false)]->getData("mmio_resp_valid", hasData);
+            top->io_mmio_resp_bits_cmd = channels[make_tuple("cache", "mmio", false)]->getData("mmio_resp_bits_cmd", hasData);
+            top->io_mmio_resp_bits_rdata = channels[make_tuple("cache", "mmio", false)]->getData("mmio_resp_bits_rdata", hasData);
 
             //! evaluate model
             top->eval();
@@ -136,12 +139,9 @@ public:
             tfp->dump(contextp->time());
 
             //! assign output signals
-            //! c_if
-            transaction->setOutSignal("io_empty", top->io_empty, false);
-
-            //! in_if
-            transaction->setOutSignal("io_in_req_ready", top->io_in_req_ready, false);
             if (top->io_in_resp_ready && top->io_in_resp_valid) {
+                transaction->setOutSignal("io_empty", top->io_empty, false);
+                transaction->setOutSignal("io_in_req_ready", top->io_in_req_ready, false);
                 transaction->setOutSignal("io_in_resp_valid", top->io_in_resp_valid, false);
                 transaction->setOutSignal("io_in_resp_bits_cmd", top->io_in_resp_bits_cmd, false);
                 transaction->setOutSignal("io_in_resp_bits_rdata", top->io_in_resp_bits_rdata, false);
@@ -151,7 +151,7 @@ public:
 
             //! mem_if
             if (top->io_out_mem_req_ready && top->io_out_mem_req_valid) {
-                channels[make_pair("cache", "memory")]->setData({
+                channels[make_tuple("cache", "memory", false)]->setData({
                     {"mem_req_valid", top->io_out_mem_req_valid},
                     {"mem_req_bits_addr", top->io_out_mem_req_bits_addr},
                     {"mem_req_bits_size", top->io_out_mem_req_bits_size},
@@ -163,7 +163,7 @@ public:
 
             //! mmio_if
             if (top->io_mmio_req_ready && top->io_mmio_req_valid) {
-                channels[make_pair("cache", "mmio")]->setData({
+                channels[make_tuple("cache", "mmio", false)]->setData({
                     {"mmio_req_valid", top->io_mmio_req_valid},
                     {"mmio_req_bits_addr", top->io_mmio_req_bits_addr},
                     {"mmio_req_bits_size", top->io_mmio_req_bits_size},
@@ -173,7 +173,11 @@ public:
                 }, true, false, false);
             }
 
-            channels[make_pair("cache", "cache")]->setData({{"victimWaymask", top->victimWaymask}}, false, false, false);
+            channels[make_tuple("cache", "cache", false)]->setData({{"victimWaymask", top->victimWaymask}}, false, false, false);
+
+            if (transaction->getInSignal("reset")) {
+                transaction->transactionItems.setDone(false);
+            }
 
             if (isLast) {
                 //! don't know why tfp dump lose last cycle
@@ -200,10 +204,16 @@ public:
 
 // ========================= Ref and RefDriver =========================
 /**
- * @brief Ref Cache simulator
+ * @brief Ref Cache simulator, if you hope to drive by cycles, use it
  * 
  */
-class RefCache : public Ref {
+// class RefCache : public Ref {};
+
+/**
+ * @brief RefUnitDriver, use a ref class cache simulate the dut logic
+ * 
+ */
+class RefCacheDriver : public RefUnitDriver {
 private:
     bool cacheEmpty = false;
     //! <b>Notice that C++ vector<bool> implemented different self other vector, cannot use reference</b>, we use vector<char> instead
@@ -214,10 +224,8 @@ private:
     vector<vector<vector<Data>>> cacheData = vector<vector<vector<Data>>>(128, vector<vector<Data>>(4, vector<Data>(8, 0)));
 
 public:
-    RefCache() = delete;
-    ~RefCache() override = default;
-
-    RefCache(ChannelsType &inChannels, const shared_ptr<Transaction>& inTransaction) : Ref("cache", inChannels, inTransaction) {}
+    RefCacheDriver() : RefUnitDriver("cache") {};
+    ~RefCacheDriver() override = default;
 
     void reset() {
         cacheEmpty = false;
@@ -237,13 +245,13 @@ public:
         };
         for (int i = 0; i < 7; i++) {
             request["req_bits_wdata"] = cacheData[setId][wayId][i];
-            channels[make_pair("cache", "memory")]->setData(request, true, false, false);
-            assert(channels[make_pair("cache", "memory")]->getData("wb_resp_bits_cmd", hasData) == static_cast<Data>(SimpleBusCmd::writeResp));
+            channels[make_tuple("cache", "memory", true)]->setData(request, true, false, false);
+            assert(channels[make_tuple("cache", "memory", true)]->getData("wb_resp_bits_cmd", hasData) == static_cast<Data>(SimpleBusCmd::writeResp));
         }
         request["wb_req_bits_cmd"] = static_cast<Data>(SimpleBusCmd::writeLast);
         request["wb_req_bits_wdata"] = cacheData[setId][wayId][7];
-        channels[make_pair("cache", "memory")]->setData(request, true, false, false);
-        assert(channels[make_pair("cache", "memory")]->getData("wb_resp_bits_cmd", hasData) == static_cast<Data>(SimpleBusCmd::writeResp));
+        channels[make_tuple("cache", "memory", true)]->setData(request, true, false, false);
+        assert(channels[make_tuple("cache", "memory", true)]->getData("wb_resp_bits_cmd", hasData) == static_cast<Data>(SimpleBusCmd::writeResp));
         cacheValid[setId][wayId] = 0;
     }
 
@@ -251,7 +259,7 @@ public:
         bool hasData = false;
         Data tag = addr >> 13;
         Data setId = (addr >> 6) & ((0x1 << 7) - 1);
-        channels[make_pair("cache", "memory")]->setData({
+        channels[make_tuple("cache", "memory", true)]->setData({
             {"mem_req_bits_addr", addr & ~(0x7)},
             {"mem_req_bits_size", 0b011},
             {"mem_req_bits_cmd", static_cast<Data>(SimpleBusCmd::readBurst)},
@@ -262,7 +270,7 @@ public:
         cacheValid[setId][wayId] = 1;
         cacheDirty[setId][wayId] = 0;
         cacheTag[setId][wayId] = tag;
-        cacheData[setId][wayId][wordId] = channels[make_pair("cache", "memory")]->getData("mem_resp_bits_rdata", hasData);
+        cacheData[setId][wayId][wordId] = channels[make_tuple("cache", "memory", true)]->getData("mem_resp_bits_rdata", hasData);
     }
 
     static int mask2index(int mask) {
@@ -289,15 +297,13 @@ public:
         return (addr >> 3) & ((1 << 3) - 1);
     }
 
-    /**
-     * @brief You can use it cache handle the whole transaction at one execution, or multi-cycle executions
-     * 
-     */
-    bool exec() override {
+    bool drivingStep(bool isLast) override {
         bool hasData = false;
         //! reset
         if (transaction->getInSignal("reset")) {
             reset();
+            transaction->transactionItems.setDone(true);
+            return true;
         }
 
         auto addr = transaction->getInSignal("io_in_req_bits_addr");
@@ -313,7 +319,7 @@ public:
 
         // mmio
         if (mmioAddr >= 3 && mmioAddr <= 7) {
-            channels[make_pair("cache", "mmio")]->setData({
+            channels[make_tuple("cache", "mmio", true)]->setData({
                 {"mmio_req_valid", 1},
                 {"mmio_req_bits_addr", addr},
                 {"mmio_req_bits_size", inSize},
@@ -322,9 +328,10 @@ public:
                 {"mmio_req_bits_wdata", inWdata}
             }, true, false, false);
             transaction->setOutSignal("io_in_resp_valid", 1, true);
-            transaction->setOutSignal("io_in_resp_bits_cmd", channels[make_pair("cache", "mmio")]->getData("mmio_resp_bits_cmd", hasData), true);
-            transaction->setOutSignal("io_in_resp_bits_rdata", channels[make_pair("cache", "mmio")]->getData("mmio_resp_bits_rdata", hasData), true);
+            transaction->setOutSignal("io_in_resp_bits_cmd", channels[make_tuple("cache", "mmio", true)]->getData("mmio_resp_bits_cmd", hasData), true);
+            transaction->setOutSignal("io_in_resp_bits_rdata", channels[make_tuple("cache", "mmio", true)]->getData("mmio_resp_bits_rdata", hasData), true);
             transaction->setOutSignal("io_in_resp_bits_user", inUser, true);
+            transaction->transactionItems.setDone(true);
         }
         
 
@@ -351,7 +358,7 @@ public:
             }
             //! need evict
             if (victimId  == -1) {
-                victimId = mask2index((int)channels[make_pair("cache", "cache")]->getData("victimWaymask", hasData));
+                victimId = mask2index((int)channels[make_tuple("cache", "cache", true)]->getData("victimWaymask", hasData));
                 if (cacheDirty[reqSetId][victimId]) {
                     write_back((int)reqSetId, victimId);
                 }
@@ -375,15 +382,17 @@ public:
         if (inCmd == static_cast<Data>(SimpleBusCmd::read) || inCmd == static_cast<Data>(SimpleBusCmd::readBurst)) {
             transaction->setOutSignal("io_in_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::readLast), true);
             transaction->setOutSignal("io_in_resp_bits_rdata", cacheData[reqSetId][hitId][reqWordId], true);
+            transaction->transactionItems.setDone(true);
         } else {
             transaction->setOutSignal("io_in_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::writeResp), true);
             transaction->setOutSignal("io_in_resp_bits_rdata", 0, true);
+            transaction->transactionItems.setDone(true);
         }
 
         // !< refill
         if (needRefill) {
             auto pktId = getPacketId((int)addr);
-            channels[make_pair("cache", "memory")] -> setData({
+            channels[make_tuple("cache", "memory", true)] -> setData({
                 {"mem_req_valid", 1},
                 {"mem_req_bits_addr", addr},
                 {"mem_req_bits_size", inSize},
@@ -393,27 +402,10 @@ public:
             }, true, false, false);
             for (int i = 1; i < 8; i++) {
                 pktId = (pktId + 1) % 8;
-                cacheData[reqSetId][hitId][pktId] = channels[make_pair("cache", "memory")]->getData("mem_resp_bits_rdata", hasData);
+                cacheData[reqSetId][hitId][pktId] = channels[make_tuple("cache", "memory", true)]->getData("mem_resp_bits_rdata", hasData);
             }
         }
         return true;
-    }
-};
-
-/**
- * @brief RefUnitDriver, use a ref class cache simulate the dut logic
- * 
- */
-class RefCacheDriver : public RefUnitDriver {
-private:
-    RefCache ref;
-
-public:
-    RefCacheDriver() : RefUnitDriver("cache"), ref(channels, transaction) {};
-    ~RefCacheDriver() override = default;
-
-    bool drivingStep(bool isLast) override {
-        return ref.exec();
     }
 };
 
@@ -432,29 +424,30 @@ public:
     SimulatorMemory() = delete;
     ~SimulatorMemory() override = default;
     SimulatorMemory(bool inConnectToRef, ChannelsType &inChannels, const shared_ptr<Transaction>& inTransaction) : Simulator(inConnectToRef, "memory", inChannels, inTransaction), self("memory"), cache("cache") {
-        channels[make_pair(self, cache)]->setData({{"memory_req_ready", true}}, false, false, false);
+        //! You cannot set channel data here, since channels has not been established, we do this in Driver class
     }
 
     bool exec() override {
+        channels[make_tuple(self, cache, connectToRef)]->setData({{"memory_req_ready", true}}, false, false, false);
         bool hasData = false;
-        auto cmd = channels[make_pair(cache, self)]->getData("mem_req_bits_cmd", hasData);
-        auto data = channels[make_pair(cache, self)]->getData("mem_req_bits_wdata", hasData);
+        auto cmd = channels[make_tuple(cache, self, connectToRef)]->getData("mem_req_bits_cmd", hasData);
+        auto data = channels[make_tuple(cache, self, connectToRef)]->getData("mem_req_bits_wdata", hasData);
         if (cmd == static_cast<Data>(SimpleBusCmd::readBurst)) {
             for (int i = 0; i < 7; i++) {
-                channels[make_pair(cache, self)]->setData({
+                channels[make_tuple(cache, self, connectToRef)]->setData({
                     {"mem_resp_valid", true},
                     {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
                     {"mem_resp_bits_cmd", 0}
                 }, true, true, true);
             }
-            channels[make_pair(cache, self)]->setData({
+            channels[make_tuple(cache, self, connectToRef)]->setData({
                 {"mem_resp_valid", true},
                 {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
                 {"mem_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::readLast)}
             }, true, true, true);
         }
         else if (cmd == static_cast<Data>(SimpleBusCmd::writeBurst)) {
-            channels[make_pair(cache, self)]->setData({
+            channels[make_tuple(cache, self, connectToRef)]->setData({
                 {"mem_resp_valid", true},
                 {"mem_resp_bits_rdata", data},
                 {"mem_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::writeResp)}
@@ -476,18 +469,19 @@ public:
     SimulatorMMIO(bool inConnectToRef, ChannelsType &inChannels, const shared_ptr<Transaction>& inTransaction) : Simulator(inConnectToRef, "mmio", inChannels, inTransaction), self("mmio"), cache("cache") {}
 
     bool exec() override {
+        channels[make_tuple(self, cache, connectToRef)]->setData({{"mmio_req_ready", true}}, false, false, false);
         bool hasData = false;
-        auto cmd = channels[make_pair(cache, self)]->getData("mmio_req_bits_cmd", hasData);
-        auto data = channels[make_pair(cache, self)]->getData("mem_req_bits_wdata", hasData);
+        auto cmd = channels[make_tuple(cache, self, connectToRef)]->getData("mmio_req_bits_cmd", hasData);
+        auto data = channels[make_tuple(cache, self, connectToRef)]->getData("mem_req_bits_wdata", hasData);
         if (cmd == static_cast<int>(SimpleBusCmd::read)) {
-            channels [make_pair(cache, self)]->setData({
+            channels [make_tuple(cache, self, connectToRef)]->setData({
                 {"mmio_resp_valid", true},
                 {"mmio_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
                 {"mmio_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::readLast)}
             }, true, true, false);
         }
         else if (cmd == static_cast<int>(SimpleBusCmd::write)) {
-            channels [make_pair(cache, self)]->setData({
+            channels [make_tuple(cache, self, connectToRef)]->setData({
                 {"mmio_resp_valid", true},
                 {"mmio_resp_bits_rdata", data},
                 {"mmio_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::writeResp)}
@@ -505,7 +499,7 @@ private:
 public:
     MemorySimulatorDriver() = delete;
     ~MemorySimulatorDriver() override = default;
-    explicit MemorySimulatorDriver(bool inConnectToRef) : SimulatorDriver("memory", make_shared<SimulatorMemory>(false, channels, transaction)), memory(inConnectToRef, channels, transaction) {}
+    explicit MemorySimulatorDriver(bool inConnectToRef) : SimulatorDriver(inConnectToRef, "memory", make_shared<SimulatorMemory>(false, channels, transaction)), memory(inConnectToRef, channels, transaction) {}
 
     bool drivingStep(bool isLast) override {
         return memory.exec();
@@ -520,7 +514,7 @@ private:
 public:
     MMIOSimulatorDriver() = delete;
     ~MMIOSimulatorDriver() override = default;
-    explicit MMIOSimulatorDriver(bool inConnectToRef) : SimulatorDriver("mmio", make_shared<SimulatorMMIO>(false, channels, transaction)), mmio(inConnectToRef, channels, transaction) {}
+    explicit MMIOSimulatorDriver(bool inConnectToRef) : SimulatorDriver(inConnectToRef, "mmio", make_shared<SimulatorMMIO>(false, channels, transaction)), mmio(inConnectToRef, channels, transaction) {}
 
     bool drivingStep(bool isLast) override {
         return mmio.exec();
@@ -550,11 +544,7 @@ enum class TestPoint {
  * @param testPoint 
  * @return const shared_ptr<SerialTestSet>& 
  */
-const shared_ptr<SerialTestSet> &generateTest(TestPoint testPoint) {
-    //! instance the models
-    shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
-    PortSpecGeneratorModel model(userTests);
-
+void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
     //! add ports default spec
     //! direct input value is the default value
     model.addPortTestSpecDefault("reset", GeneratorType::DIRECT_INPUT, 0);
@@ -658,7 +648,7 @@ const shared_ptr<SerialTestSet> &generateTest(TestPoint testPoint) {
         throw runtime_error("Not implemented TestPoint");
         break;
     }
-    return userTests->getTests();
+    model.generateSerialTest(true);
 }
 
 // ========================== Evaluator ============================
@@ -687,13 +677,17 @@ void registerEvaluator() {
 }
 
 int main() {
-    TransactionLauncher::setupTransaction(generateTest(TestPoint::READ_ONCE));
+    //! instance the models
+    shared_ptr<GeneratedUserTest> userTests = make_shared<GeneratedUserTest>();
+    PortSpecGeneratorModel model(userTests);
+    generateTest(model, TestPoint::READ_ONCE);
+    TransactionLauncher::setupTransaction(userTests->getTests());
     std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> simuDrivers = {
         {make_pair(make_shared<MemorySimulatorDriver>(false), make_shared<MemorySimulatorDriver>(true))},
         {make_pair(make_shared<MMIOSimulatorDriver>(false), make_shared<MMIOSimulatorDriver>(true))}
     };
     SimulatorlDriverRegistrar::getInstance().registerSimulatorDriver(simuDrivers);
-    Spreader<DutCacheDriver, RefCacheDriver, VerilatorReporter> spreader("log", "report", {
+    Spreader<DutCacheDriver, RefCacheDriver, VerilatorReporter> spreader("log/cache", "report/cache", {
         make_pair(unordered_map<string, shared_ptr<DriverModel>>({
             {"memory", make_shared<MemorySimulatorDriver>(false)},
             {"mmio", make_shared<MMIOSimulatorDriver>(false)}

@@ -67,7 +67,16 @@ public:
     }
 
     bool isAllDone() {
-        return dutStatus == TransactionReqStatus::DONE &&refStatus == TransactionReqStatus::DONE;
+        return dutStatus == TransactionReqStatus::DONE && refStatus == TransactionReqStatus::DONE;
+    }
+
+    bool isAllDone(bool isRef) {
+        if (isRef) {
+            return refStatus == TransactionReqStatus::DONE;
+        }
+        else {
+            return dutStatus == TransactionReqStatus::DONE;
+        }
     }
 
     void setDone(bool fromRef) {
@@ -389,11 +398,10 @@ public:
      * @param src request src
      * @param dest request dest
      * @param fromRef dut or ref
-     * @param totalNumber max transaction numbers waiting for response
      * @return true 
      * @return false 
      */
-    std::vector<int> checkRequest(const std::string &src, const std::string &dest, bool fromRef, bool &totalNumber);
+    std::vector<int> checkRequest(const std::string &src, const std::string &dest, bool fromRef);
 
     /**
      * @brief Get the Request object
@@ -468,6 +476,15 @@ public:
      * @return false 
      */
     bool checkTransactionFinish();
+
+    /**
+     * @brief check the dut or ref transaction finished
+     * 
+     * @param isRef
+     * @return true 
+     * @return false 
+     */
+    bool checkTransactionFinish(bool isRef);
 
     std::vector<std::reference_wrapper<TransactionResp>> getAllTransactionResp(bool fromRef);
 

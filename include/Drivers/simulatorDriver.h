@@ -24,7 +24,7 @@ private:
 public:
     SimulatorDriver() = delete;
     ~SimulatorDriver() override = default;
-    SimulatorDriver(std::string inSimulatorName, std::shared_ptr<MLVP::Simulator::Simulator> inSimulator) : DriverModel(std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
+    SimulatorDriver(bool isRef, std::string inSimulatorName, std::shared_ptr<MLVP::Simulator::Simulator> inSimulator) : DriverModel(isRef, std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
 
     /**
      * bool drivingStep(bool isLast) override

@@ -29,7 +29,7 @@ class RefUnitDriver : public MLVP::Driver::DriverModel {
 public:
     RefUnitDriver() = delete;
     ~RefUnitDriver() override = default;
-    explicit RefUnitDriver(std::string inUnitName) : DriverModel(std::move(inUnitName)) {}
+    explicit RefUnitDriver(std::string inUnitName) : DriverModel(true, std::move(inUnitName)) {}
     
     /**
      * bool drivingStep(bool isLast) override
@@ -45,7 +45,7 @@ class RefTransDriver : public TransDriver {
 public:
     RefTransDriver() = delete;
     ~RefTransDriver() override = default;
-    RefTransDriver(std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : TransDriver(std::move(in), std::move(inSimulatorDrivers)) {}
+    RefTransDriver(std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : TransDriver(true, std::move(in), std::move(inSimulatorDrivers)) {}
 };
 
 

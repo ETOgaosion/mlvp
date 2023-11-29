@@ -49,12 +49,12 @@ public:
         auto dutUnit = dutDriver->getUnit();
         auto refUnit = refDriver->getUnit();
         bool res;
-        auto channel = dutDriver->addChannel(false, dutName, dutUnit, refName, refUnit, res);
+        auto channel = dutDriver->addChannel(dutName, dutUnit, refName, refUnit, res);
         if (!res) {
             throw std::runtime_error("Error: add channel failed");
         }
         refDriver->addChannel(dutName, refName, channel);
-        channel = refDriver->addChannel(true, refName, refUnit, dutName, dutUnit, res);
+        channel = refDriver->addChannel(refName, refUnit, dutName, dutUnit, res);
         if (!res) {
             throw std::runtime_error("Error: add channel failed");
         }
@@ -87,30 +87,34 @@ public:
         bool dutResult, refResult;
         if (USE_THREADS) {
             for (int i = 0; i < transactions.size(); i++) {
-                auto sendDutFuture = std::async(std::launch::async, [this] {
-                    sendTransaction(false);
-                });
-                auto sendRefFuture = std::async(std::launch::async, [this] {
-                    sendTransaction(true);
-                });
-                sendDutFuture.wait();
-                sendRefFuture.wait();
-                incTransPtr();
+                if (dutDriver->checkTransactionFinish() && refDriver->checkTransactionFinish()) {
+                    auto sendDutFuture = std::async(std::launch::async, [this] {
+                        sendTransaction(false);
+                    });
+                    auto sendRefFuture = std::async(std::launch::async, [this] {
+                        sendTransaction(true);
+                    });
+                    sendDutFuture.wait();
+                    sendRefFuture.wait();
+                    incTransPtr();
+                }
                 auto dutFuture = std::async(std::launch::async, [this, i] {
                     return dutDriver->drivingStep(i == transactions.size() - 1);
                 });
+                dutResult = dutFuture.get();
                 auto refFuture = std::async(std::launch::async, [this, i] {
                     return refDriver->drivingStep(i == transactions.size() - 1);
                 });
-                dutResult = dutFuture.get();
                 refResult = refFuture.get();
             }
         }
         else {
             for (int i = 0; i < transactions.size(); i++) {
-                sendTransaction(false);
-                sendTransaction(true);
-                incTransPtr();
+                if (dutDriver->checkTransactionFinish() && refDriver->checkTransactionFinish()) {
+                    sendTransaction(false);
+                    sendTransaction(true);
+                    incTransPtr();
+                }
                 dutResult = dutDriver->drivingStep(i == transactions.size() - 1);
                 refResult = refDriver->drivingStep(i == transactions.size() - 1);
             }

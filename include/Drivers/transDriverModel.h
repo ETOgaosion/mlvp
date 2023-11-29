@@ -21,6 +21,7 @@
 namespace MLVP::Driver {
 class TransDriver : public DriverModel {
 private:
+    bool isRef;
     std::shared_ptr<DriverModel> unit; //! Actually a UnitDriver Child Implemented by user
     std::unordered_map<std::string, std::shared_ptr<DriverModel>> simulatorDrivers; //! Actually a SimulatorDriver Child Implemented by user
 
@@ -34,18 +35,18 @@ public:
      * @param in class inherited from UnitDriver
      * @param inSimulatorDrivers must be new object, different with simulatorDrivers in RefUnitDriver
      */
-    TransDriver(std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : unit(std::move(in)), simulatorDrivers(std::move(inSimulatorDrivers)) {
+    TransDriver(bool inIsRef, std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : isRef(inIsRef), unit(std::move(in)), simulatorDrivers(std::move(inSimulatorDrivers)) {
         for (auto &simulatorDriver : simulatorDrivers) {
             bool res;
             //! unitUnit: unitUnit -> simulator
-            auto channel = unit->addChannel(false, unit->getName(), unit, simulatorDriver.first, simulatorDriver.second, res);
+            auto channel = unit->addChannel(unit->getName(), unit, simulatorDriver.first, simulatorDriver.second, res);
             if (!res) {
                 throw std::runtime_error("Error: add channel failed");
             }
             //! simulator: unitUnit -> simulator
             simulatorDriver.second->addChannel(unit->getName(), simulatorDriver.first, channel);
             //! simulator: simulator -> unitUnit
-            channel = simulatorDriver.second->addChannel(false, simulatorDriver.first, simulatorDriver.second, unit->getName(), unit, res);
+            channel = simulatorDriver.second->addChannel(simulatorDriver.first, simulatorDriver.second, unit->getName(), unit, res);
             if (!res) {
                 throw std::runtime_error("Error: add channel failed");
             }
@@ -58,14 +59,10 @@ public:
 
     std::shared_ptr<DriverModel> getUnit() { return unit; }
 
-    std::shared_ptr<MLVP::Channel::Channel<DriverModel>> addChannel(bool inFromRef, const std::string &inSource, const std::shared_ptr<MLVP::Driver::DriverModel> &inSourceDriver, const std::string &inDestination, const std::shared_ptr<MLVP::Driver::DriverModel> &inDestDriver, bool &res) override {
-        auto ret = inSourceDriver->addChannel(inFromRef, inSource, inSourceDriver, inDestination, inDestDriver, res);
+    std::shared_ptr<MLVP::Channel::Channel<DriverModel>> addChannel(const std::string &inSource, const std::shared_ptr<MLVP::Driver::DriverModel> &inSourceDriver, const std::string &inDestination, const std::shared_ptr<MLVP::Driver::DriverModel> &inDestDriver, bool &res) override {
+        auto ret = inSourceDriver->addChannel(inSource, inSourceDriver, inDestination, inDestDriver, res);
         if (!res) {
-            throw std::runtime_error("Error: add channel failed");
-        }
-        ret = inDestDriver->addChannel(inFromRef, inSource, inSourceDriver, inDestination, inDestDriver, res);
-        if (!res) {
-            throw std::runtime_error("Error: add channel failed");
+            throw std::runtime_error("Error: add channel failed " + inSource + " " + inDestination);
         }
         return ret;
     }
@@ -87,14 +84,30 @@ public:
         return res;
     }
 
-    std::shared_ptr<MLVP::Channel::Channel<DriverModel>> getChannel(const std::string &inSourceName, const std::string &inDestName, bool &res) override {
-        auto ret = unit->getChannel(inSourceName, inDestName, res);
+    std::shared_ptr<MLVP::Channel::Channel<DriverModel>> getChannel(bool inIsRef, const std::string &inSourceName, const std::string &inDestName, bool &res) override {
+        auto ret = unit->getChannel(inIsRef, inSourceName, inDestName, res);
         if (res) {
             return ret;
         }
         else {
             for (auto &simulatorDriver : simulatorDrivers) {
-                ret = simulatorDriver.second->getChannel(inSourceName, inDestName, res);
+                ret = simulatorDriver.second->getChannel(inIsRef, inSourceName, inDestName, res);
+                if (res) {
+                    return ret;
+                }
+            }
+        }
+        return ret;
+    }
+
+    std::shared_ptr<MLVP::Channel::Channel<DriverModel>> getChannel(const std::string &inSourceName, const std::string &inDestName, bool &res) {
+        auto ret = unit->getChannel(isRef, inSourceName, inDestName, res);
+        if (res) {
+            return ret;
+        }
+        else {
+            for (auto &simulatorDriver : simulatorDrivers) {
+                ret = simulatorDriver.second->getChannel(isRef, inSourceName, inDestName, res);
                 if (res) {
                     return ret;
                 }
@@ -104,6 +117,7 @@ public:
     }
 
     bool setTransaction(std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) override {
+        transaction = inTransaction;
         unit->setTransaction(inTransaction);
         for (auto &simulatorDriver : simulatorDrivers) {
             simulatorDriver.second->setTransaction(inTransaction);
@@ -112,10 +126,14 @@ public:
     }
 
     bool drivingStep(bool isLast) override {
-        while (!transaction->checkTransactionFinish()) {
+        while (!transaction->checkTransactionFinish(isRef)) {
             unit->drivingStep(isLast);
         }
         return true;
+    }
+
+    bool transactionFinish() {
+        return transaction->checkTransactionFinish();
     }
 
 };

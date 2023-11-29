@@ -44,10 +44,10 @@ add_subdirectory(tests)
 set(CMAKE_INSTALL_PREFIX /usr/local)
 set(CMAKE_INSTALL_LOCAL_ONLY TRUE)
 
-install(
-    TARGETS mlvp-lib 
-    LIBRARY DESTINATION lib/
-)
+# install(
+#     TARGETS mlvp-lib 
+#     LIBRARY DESTINATION lib/
+# )
 install(
     DIRECTORY include DESTINATION include
 )

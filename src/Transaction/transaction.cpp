@@ -13,6 +13,7 @@
 
 #include <bits/ranges_algo.h>
 #include <functional>
+#include <memory>
 #include <utility>
 #include <vector>
 #include "Database/database.h"
@@ -81,6 +82,22 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
     transactionItem.first.setDone();
 }
 
+std::vector<int> Transaction::checkRequest(const std::string &src, const std::string &dest, bool fromRef) {
+    lock_guard<mutex> lock(transactionMutex);
+    auto modulePair = make_pair(src, dest);
+    auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
+    if (!userTransaction.contains(modulePair)) {
+        throw runtime_error("Transaction request not found");
+    }
+    vector<int> res;
+    for (int i = 0; i < userTransaction[modulePair].size(); i++) {
+        if (!userTransaction[modulePair][i].first.isDone()) {
+            res.emplace_back(i);
+        }
+    }
+    return res;
+}
+
 bool Transaction::checkTransactionFinish() {
         bool finished = transactionItems.isAllDone();
         if (finished) {
@@ -103,7 +120,11 @@ bool Transaction::checkTransactionFinish() {
                 }
             }
         }
-        return false;
+        return true;
+}
+
+bool Transaction::checkTransactionFinish(bool isRef) {
+        return transactionItems.isAllDone(isRef);
 }
 
 vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bool fromRef) {
@@ -224,19 +245,48 @@ bool Transaction::compareRefDut(int type) {
     return res;
 }
 
-
+/**
+ * @brief Set up transaction database
+ * 
+ * @param dataSet a vector<unordered_map<string, vector<SerialData>>> object
+ * @example dataSet:
+ * ```txt
+ * { SerialTest 1, SerialTest 2, ... }
+ * SerialTest:
+ * {
+ *   { "port1", { 1, 2, 3, 4, 5 } },
+ *   { "port2", { 1, 2, 3, 4, 5 } },
+ * }
+ * ```
+ * We need to convert to:
+ * ```
+ * { TransactionSet 1, TransactionSet 2, ... }
+ * TransactionSet:
+ * {
+ *   { Transaction 1, Transaction 2, ... },
+ *   { Transaction 1, Transaction 2, ... },
+ * }
+ * ```
+ * Transaction:
+ * {
+ *   { "port1", 1 },
+ *   { "port2", 1 },
+ * }
+ * @return int 
+ */
 int TransactionLauncher::setupTransaction(const shared_ptr<SerialTestSet> &dataSet) {
     vector<shared_ptr<Transaction>> transactions;
-    transactions.reserve(dataSet->size());
-    for (int i = 0; i < dataSet->begin()->size(); i++) {
-        PortsData portsData;
-        for (auto &test : *dataSet) {
-            for (auto &port : test) {
-                portsData.emplace(port.first, port.second[i]);
+    for (auto &serialTest : *dataSet) {
+        shared_ptr<PortsData> portsData;
+        auto serialTestSize = serialTest.begin()->second.size();
+        for (int i = 0; i < serialTestSize; i++) {
+            portsData = make_shared<PortsData>();
+            for (auto &port : serialTest) {
+                portsData->emplace(port.first, port.second[i]);
             }
+            transactions.push_back(make_shared<Transaction>(*portsData));
         }
-        transactions.push_back(make_shared<Transaction>(portsData));
+        TransactionDatabase::getInstance().addTransaction(transactions);
     }
-    TransactionDatabase::getInstance().addTransaction(transactions);
     return (int)dataSet->size();
 }

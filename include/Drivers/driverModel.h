@@ -14,6 +14,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <utility>
 #include <functional>
@@ -26,16 +27,17 @@
 namespace MLVP::Driver {
 class DriverModel {
 protected:
+    bool isRef = false;
     std::string name;
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
-    std::map<std::pair<std::string, std::string>, std::shared_ptr<MLVP::Channel::Channel<DriverModel>>> channels; //! <dest name, Channel<DriverModel>>
+    std::map<std::tuple<std::string, std::string, bool>, std::shared_ptr<MLVP::Channel::Channel<DriverModel>>> channels; //! <dest name, Channel<DriverModel>>
     
 
 public:
     DriverModel() = default;
     virtual ~DriverModel() = default;
 
-    explicit DriverModel(std::string inName) : name(std::move(inName)) {
+    explicit DriverModel(bool inIsRef, std::string inName) : isRef(inIsRef), name(std::move(inName)) {
         channels.clear();
     }
     
@@ -44,11 +46,11 @@ public:
     }
 
     bool checkTransactionFinish() {
-        return transaction->checkTransactionFinish();
+        return !transaction || transaction->checkTransactionFinish();
     }
 
     virtual bool setTransaction(std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) {
-        if (!checkTransactionFinish()) {
+        if (transaction && !checkTransactionFinish()) {
             throw std::runtime_error("Transaction is not finished yet");
             return false;
         }
@@ -60,9 +62,9 @@ public:
         return transaction;
     }
 
-    virtual std::shared_ptr<MLVP::Channel::Channel<DriverModel>> addChannel(bool inFromRef, const std::string &inSource, const std::shared_ptr<MLVP::Driver::DriverModel> &inSourceDriver, const std::string &inDestination, const std::shared_ptr<MLVP::Driver::DriverModel> &inDestDriver, bool &res) {
-        auto pair = std::make_pair(inSource, inDestination);
-        if (channels.count(pair)) {
+    virtual std::shared_ptr<MLVP::Channel::Channel<DriverModel>> addChannel(const std::string &inSource, const std::shared_ptr<MLVP::Driver::DriverModel> &inSourceDriver, const std::string &inDestination, const std::shared_ptr<MLVP::Driver::DriverModel> &inDestDriver, bool &res) {
+        auto tuple = std::make_tuple(inSource, inDestination, isRef);
+        if (channels.count(tuple)) {
             if (MLVP::Library::bugHandleDegree == MLVP::Library::Degree::HIGH) {
                 throw std::runtime_error("Channel already exists");
             }
@@ -75,13 +77,14 @@ public:
             res = false;
             return {};
         }
-        channels.emplace(pair, std::make_shared<MLVP::Channel::Channel<DriverModel>>(inFromRef, inSource, inSourceDriver, inDestination, inDestDriver));
-        return channels[pair];
+        channels.emplace(tuple, std::make_shared<MLVP::Channel::Channel<DriverModel>>(isRef, inSource, inSourceDriver, inDestination, inDestDriver));
+        res = true;
+        return channels[tuple];
     }
 
     virtual bool addChannel(const std::string &inSourceName, const std::string& inDestName, const std::shared_ptr<MLVP::Channel::Channel<DriverModel>>& inChannel) {
-        auto pair = std::make_pair(inSourceName, inDestName);
-        if (channels.count(pair)) {
+        auto tuple = std::make_tuple(inSourceName, inDestName, inChannel->getFromRef());
+        if (channels.count(tuple)) {
             if (MLVP::Library::bugHandleDegree == MLVP::Library::Degree::HIGH) {
                 throw std::runtime_error("Channel already exists");
             }
@@ -89,17 +92,18 @@ public:
                 return false;
             }
         }
-        channels.emplace(pair, inChannel);
+        channels.emplace(tuple, inChannel);
         return true;
     }
 
 
 
-    virtual std::shared_ptr<MLVP::Channel::Channel<DriverModel>> getChannel(const std::string &inSourceName, const std::string &inDestName, bool &result) {
-        if (!channels.count(std::make_pair(inSourceName, inDestName))) {
-            result = {};
+    virtual std::shared_ptr<MLVP::Channel::Channel<DriverModel>> getChannel(bool inFromRef, const std::string &inSourceName, const std::string &inDestName, bool &result) {
+        if (!channels.count(std::make_tuple(inSourceName, inDestName, inFromRef))) {
+            result = false;
         }
-        return channels[std::make_pair(inSourceName, inDestName)];
+        result = true;
+        return channels[std::make_tuple(inSourceName, inDestName, inFromRef)];
     }
 
     virtual bool drivingStep(bool isLast) = 0;
