@@ -25,6 +25,7 @@
  * @image html MLVP_BareDut.png
  * 
  */
+
 #include "Channel/channel.h"
 #include "Drivers/driverModel.h"
 #include "Drivers/simulatorDriver.h"
@@ -34,6 +35,7 @@
 #include "Transaction/transaction.h"
 #include "mlvp.h"
 #include "MCVPack/BareDut/NutshellCache/Vnutshellcache.h"
+
 #include <cassert>
 #include <memory>
 #include <optional>
@@ -48,7 +50,6 @@
  * @brief SimpleBusCmd
  * 
  */
-
 enum class SimpleBusCmd : Data {
     //! req
     read        = 0b0000,
@@ -70,6 +71,7 @@ enum class SimpleBusCmd : Data {
 class DutCacheDriver : public DutUnitDriver {
 private:
     const shared_ptr<Vnutshellcache> top;
+    bool transactionStart = true;
 
 public:
     DutCacheDriver(int inDriverID, const string& inLogPath) : DutUnitDriver("cache", inDriverID, inLogPath), top(make_shared<Vnutshellcache>(contextp.get(), "top")) {
@@ -97,7 +99,13 @@ public:
             top->io_flush = transaction->getInSignal("io_flush");
 
             //! in_if
-            top->io_in_req_valid = transaction->getInSignal("io_in_req_valid");
+            if (transactionStart && top->io_in_req_ready) {
+                top->io_in_req_valid = true;
+                transactionStart = false;
+            }
+            else {
+                top->io_in_req_valid = false;
+            }
             top->io_in_req_bits_addr = transaction->getInSignal("io_in_req_bits_addr");
             top->io_in_req_bits_size = transaction->getInSignal("io_in_req_bits_size");
             top->io_in_req_bits_cmd = transaction->getInSignal("io_in_req_bits_cmd");
@@ -147,6 +155,7 @@ public:
                 transaction->setOutSignal("io_in_resp_bits_rdata", top->io_in_resp_bits_rdata, false);
                 transaction->setOutSignal("io_in_resp_bits_user", top->io_in_resp_bits_user, false);
                 transaction->transactionItems.setDone(false);
+                transactionStart = true;
             }
 
             //! mem_if
@@ -177,6 +186,7 @@ public:
 
             if (transaction->getInSignal("reset")) {
                 transaction->transactionItems.setDone(false);
+                transactionStart = true;
             }
 
             if (isLast) {
@@ -549,7 +559,6 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
     //! direct input value is the default value
     model.addPortTestSpecDefault("reset", GeneratorType::DIRECT_INPUT, 0);
     model.addPortTestSpecDefault("io_flush", GeneratorType::DIRECT_INPUT, 0);
-    model.addPortTestSpecDefault("io_in_req_valid", GeneratorType::DIRECT_INPUT, 1);
     //! random generator value is the bit width
     model.addPortTestSpecDefault("io_in_req_bits_addr", GeneratorType::RANDOM_GENERATOR, 32);
     model.addPortTestSpecDefault("io_in_req_bits_size", GeneratorType::RANDOM_GENERATOR, 3);
