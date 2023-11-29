@@ -36,6 +36,7 @@
 #include "mlvp.h"
 #include "MCVPack/BareDut/NutshellCache/Vnutshellcache.h"
 
+#include <iostream>
 #include <cassert>
 #include <memory>
 #include <optional>
@@ -74,7 +75,7 @@ private:
     bool transactionStart = true;
 
 public:
-    DutCacheDriver(int inDriverID, const string& inLogPath) : DutUnitDriver("cache", inDriverID, inLogPath), top(make_shared<Vnutshellcache>(contextp.get(), "top")) {
+    DutCacheDriver(int inResetCycles, int inDriverID, const string& inLogPath) : DutUnitDriver(inResetCycles, "cache", inDriverID, inLogPath), top(make_shared<Vnutshellcache>(contextp.get(), "top")) {
         contextp->debug(0);
         //! [notice] > randReset(other value) can cause error, because our first posedge is delayed 1 cycle
         contextp->randReset(0);
@@ -82,6 +83,22 @@ public:
         top->trace(tfp.get(), 99);
         //! this should be called after trace
         tfp->open((logPath + "/cache.vcd").c_str());
+    }
+
+    void reset() override {
+        contextp->timeInc(1);
+        top->clock = !top->clock;
+        top->reset = true;
+        //! evaluate model
+        top->eval();
+        //! generate trace
+        tfp->dump(contextp->time());
+
+        // a cycle is down and up, so eval twice
+        contextp->timeInc(1);
+        top->clock = !top->clock;
+        top->eval();
+        tfp->dump(contextp->time());
     }
 
     /**
@@ -100,6 +117,7 @@ public:
 
             //! in_if
             if (transactionStart && top->io_in_req_ready) {
+                std::cout << "recieve a request" << std::endl;
                 top->io_in_req_valid = true;
                 transactionStart = false;
             }
@@ -146,6 +164,11 @@ public:
             top->eval();
             tfp->dump(contextp->time());
 
+            if (transaction->getInSignal("reset")) {
+                transaction->transactionItems.setDone(false);
+                transactionStart = true;
+            }
+
             //! assign output signals
             if (top->io_in_resp_ready && top->io_in_resp_valid) {
                 transaction->setOutSignal("io_empty", top->io_empty, false);
@@ -183,11 +206,6 @@ public:
             }
 
             channels[make_tuple("cache", "cache", false)]->setData({{"victimWaymask", top->victimWaymask}}, false, false, false);
-
-            if (transaction->getInSignal("reset")) {
-                transaction->transactionItems.setDone(false);
-                transactionStart = true;
-            }
 
             if (isLast) {
                 //! don't know why tfp dump lose last cycle
@@ -234,10 +252,10 @@ private:
     vector<vector<vector<Data>>> cacheData = vector<vector<vector<Data>>>(128, vector<vector<Data>>(4, vector<Data>(8, 0)));
 
 public:
-    RefCacheDriver() : RefUnitDriver("cache") {};
+    explicit RefCacheDriver(int inResetCycles) : RefUnitDriver(inResetCycles, "cache") {};
     ~RefCacheDriver() override = default;
 
-    void reset() {
+    void reset() override {
         cacheEmpty = false;
         cacheValid = vector<vector<char>>(128, vector<char>(4, 0));
         cacheDirty = vector<vector<char>>(128, vector<char>(4, 0));
@@ -309,12 +327,6 @@ public:
 
     bool drivingStep(bool isLast) override {
         bool hasData = false;
-        //! reset
-        if (transaction->getInSignal("reset")) {
-            reset();
-            transaction->transactionItems.setDone(true);
-            return true;
-        }
 
         auto addr = transaction->getInSignal("io_in_req_bits_addr");
         auto mmioAddr = addr >> 28;
@@ -509,7 +521,9 @@ private:
 public:
     MemorySimulatorDriver() = delete;
     ~MemorySimulatorDriver() override = default;
-    explicit MemorySimulatorDriver(bool inConnectToRef) : SimulatorDriver(inConnectToRef, "memory", make_shared<SimulatorMemory>(false, channels, transaction)), memory(inConnectToRef, channels, transaction) {}
+    explicit MemorySimulatorDriver(int inResetCycles, bool inConnectToRef) : SimulatorDriver(inResetCycles, inConnectToRef, "memory", make_shared<SimulatorMemory>(false, channels, transaction)), memory(inConnectToRef, channels, transaction) {}
+
+    void reset() override {}
 
     bool drivingStep(bool isLast) override {
         return memory.exec();
@@ -524,7 +538,9 @@ private:
 public:
     MMIOSimulatorDriver() = delete;
     ~MMIOSimulatorDriver() override = default;
-    explicit MMIOSimulatorDriver(bool inConnectToRef) : SimulatorDriver(inConnectToRef, "mmio", make_shared<SimulatorMMIO>(false, channels, transaction)), mmio(inConnectToRef, channels, transaction) {}
+    explicit MMIOSimulatorDriver(int inResetCycles, bool inConnectToRef) : SimulatorDriver(inResetCycles, inConnectToRef, "mmio", make_shared<SimulatorMMIO>(false, channels, transaction)), mmio(inConnectToRef, channels, transaction) {}
+
+    void reset() override {}
 
     bool drivingStep(bool isLast) override {
         return mmio.exec();
@@ -570,46 +586,41 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
     //! add ports detailed spec
     switch (testPoint) {
     case TestPoint::READ_ONCE: {
-        model.setSize(2);
-        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 1, 1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+        model.setSize(1);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, 0, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
             return  ((data >> 30) != 0b01) && ((data >> 28) != 0b00111);
         }, nullopt);
         break;
     }
     case TestPoint::READ_MEMORY: {
-        model.setSize(100001);
-        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.setSize(100000);
         //! endIndex can be negative cache count down value, convinient isn't it?
         //! for random generator mode, first element of vector is max value
-        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
             return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
         }, nullopt);
         break;
     }
     case TestPoint::WRITE_MEMORY: {
-        model.setSize(100001);
-        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+        model.setSize(100000);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
             return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
         }, nullopt);
         break;
     }
     case TestPoint::READWRITE_MEMORY: {
-        model.setSize(100001);
-        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.setSize(100000);
         //! a trick: sv use cmd[3:1] == 3'b000, so only last elements is random, whole value can only be 0 or 1
-        model.addPortTestSpec("io_in_req_bits_cmd", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
             return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
         }, nullopt);
         break;
     }
     case TestPoint::MMIO: {
-        model.setSize(100001);
-        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.setSize(100000);
         //! a trick: use constrain cache filter value is too slow, may retry many timers, use post handler is much faster, one time generate
-        model.addPortTestSpec("io_in_req_bits_addr", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), nullopt, [](Data data) {
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), nullopt, [](Data data) {
             if (RandomGenerator::getInstance().getRandomData(1)) {
                 return data | (0b01 << 30) | (RandomGenerator::getInstance().getRandomData(3) << 28);
             } else {
@@ -623,33 +634,31 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
         for (int i = 0; i < 1000; i++) {
             model.addPortTestSpec("reset", i * 100, i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
         }
-        model.addPortTestSpec("io_in_req_bits_cmd", 1, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
         break;
     }
     case TestPoint::SEQ: {
-        model.setSize(20000 * 2 + 2);
-        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.setSize(20000 * 2 + 1);
         SerialData addr;
         for (int i = 0; i < 20000; i++) {
             addr.push_back(i);
         }
-        model.addPortTestSpec("io_in_req_bits_addr", 1, 20000, GeneratorType::DIRECT_INPUT, addr);
-        model.addPortTestSpec("reset", 20001, 20001, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 20002, -1, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, 20000 - 1, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("reset", 20000, 20000, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 20001, -1, GeneratorType::DIRECT_INPUT, addr);
         break;
     }
     case TestPoint::ALL: {
-        model.setSize(40000 * 4 + 2);
-        model.addPortTestSpec("reset", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.setSize(40000 * 4 + 1);
         SerialData addr;
         for (int i = 0; i < 40000; i++) {
             addr.push_back(i);
         }
-        model.addPortTestSpec("io_in_req_bits_addr", 1, 40000, GeneratorType::DIRECT_INPUT, addr);
-        model.addPortTestSpec("reset", 40001, 40001, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 40002, 80001, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, 40000 - 1, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("reset", 40000, 40000, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_addr", 40001, 80000, GeneratorType::DIRECT_INPUT, addr);
         for (int i = 0; i < 1000; i++) {
-            model.addPortTestSpec("reset", 120002 + i * 100, 120002 + i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+            model.addPortTestSpec("reset", 120001 + i * 100, 120001 + i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
         }
         break;
     }
@@ -692,19 +701,20 @@ int main() {
     generateTest(model, TestPoint::READ_ONCE);
     TransactionLauncher::setupTransaction(userTests->getTests());
     std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> simuDrivers = {
-        {make_pair(make_shared<MemorySimulatorDriver>(false), make_shared<MemorySimulatorDriver>(true))},
-        {make_pair(make_shared<MMIOSimulatorDriver>(false), make_shared<MMIOSimulatorDriver>(true))}
+        {make_pair(make_shared<MemorySimulatorDriver>(10, false), make_shared<MemorySimulatorDriver>(10, true))},
+        {make_pair(make_shared<MMIOSimulatorDriver>(10, false), make_shared<MMIOSimulatorDriver>(10, true))}
     };
     SimulatorlDriverRegistrar::getInstance().registerSimulatorDriver(simuDrivers);
-    Spreader<DutCacheDriver, RefCacheDriver, VerilatorReporter> spreader("log/cache", "report/cache", {
+    Spreader<DutCacheDriver, RefCacheDriver, VerilatorReporter> spreader(10, "log/cache", "report/cache", {
         make_pair(unordered_map<string, shared_ptr<DriverModel>>({
-            {"memory", make_shared<MemorySimulatorDriver>(false)},
-            {"mmio", make_shared<MMIOSimulatorDriver>(false)}
+            {"memory", simuDrivers[0].first},
+            {"mmio", simuDrivers[1].first}
         }), unordered_map<string, shared_ptr<DriverModel>>({
-            {"memory", make_shared<MemorySimulatorDriver>(true)},
-            {"mmio", make_shared<MMIOSimulatorDriver>(true)}
+            {"memory", simuDrivers[0].second},
+            {"mmio", simuDrivers[1].second}
         }))
     });
+    spreader.reset();
     spreader.execute();
     return 0;
 }

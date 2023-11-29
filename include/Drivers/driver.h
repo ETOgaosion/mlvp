@@ -43,7 +43,7 @@ public:
      * @param inRef Child of RefUnitDriver class
      * @param inRefSimulatorDrivers user defined simulator drivers for ref
      */
-    Driver(std::vector<std::shared_ptr<MLVP::Transaction::Transaction>> inTransactions, std::shared_ptr<DriverModel> inDut, std::shared_ptr<DriverModel> inRef, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inDutSimulatorDrivers, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inRefSimulatorDrivers) : transactions(std::move(inTransactions)), dutDriver(std::make_shared<DutTransDriver>(inDut, inDutSimulatorDrivers)), refDriver(std::make_shared<RefTransDriver>(inRef, inRefSimulatorDrivers)) {
+    Driver(int inResetCycles, std::vector<std::shared_ptr<MLVP::Transaction::Transaction>> inTransactions, std::shared_ptr<DriverModel> inDut, std::shared_ptr<DriverModel> inRef, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inDutSimulatorDrivers, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inRefSimulatorDrivers) : transactions(std::move(inTransactions)), dutDriver( std::make_shared<DutTransDriver>(inResetCycles, inDut, inDutSimulatorDrivers)), refDriver(std::make_shared<RefTransDriver>(inResetCycles, inRef, inRefSimulatorDrivers)) {
         auto dutName = dutDriver->getName();
         auto refName = refDriver->getName();
         auto dutUnit = dutDriver->getUnit();
@@ -81,6 +81,11 @@ public:
 
     void incTransPtr() {
         transPtr++;
+    }
+
+    void reset() {
+        dutDriver->reset();
+        refDriver->reset();
     }
 
     int driving(const std::shared_ptr<std::string> &errorMsgRaw) {

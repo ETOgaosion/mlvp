@@ -144,7 +144,6 @@ int main() {
     PortSpecGeneratorModel portSpecGeneratorModel(userTests);
     for (Data i = 1; i < 5; i++) {
         portSpecGeneratorModel.setSize(6);
-        portSpecGeneratorModel.addPortTestSpec("reset", 0, 1, GeneratorType::DIRECT_INPUT, {1});
         portSpecGeneratorModel.addPortTestSpec("addr" , 0, 5, GeneratorType::DIRECT_INPUT, {i});
         portSpecGeneratorModel.addPortTestSpec("wr_en", 2, 3, GeneratorType::DIRECT_INPUT, {1});
         portSpecGeneratorModel.addPortTestSpec("rd_en", 4, 5, GeneratorType::DIRECT_INPUT, {1});

@@ -29,6 +29,7 @@ class DriverModel {
 protected:
     bool isRef = false;
     std::string name;
+    int resetCycles = 0;
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
     std::map<std::tuple<std::string, std::string, bool>, std::shared_ptr<MLVP::Channel::Channel<DriverModel>>> channels; //! <dest name, Channel<DriverModel>>
     
@@ -37,7 +38,7 @@ public:
     DriverModel() = default;
     virtual ~DriverModel() = default;
 
-    explicit DriverModel(bool inIsRef, std::string inName) : isRef(inIsRef), name(std::move(inName)) {
+    explicit DriverModel(int inResetCycles, bool inIsRef, std::string inName) : resetCycles(inResetCycles), isRef(inIsRef), name(std::move(inName)) {
         channels.clear();
     }
     
@@ -105,6 +106,8 @@ public:
         result = true;
         return channels[std::make_tuple(inSourceName, inDestName, inFromRef)];
     }
+
+    virtual void reset() = 0;
 
     virtual bool drivingStep(bool isLast) = 0;
 

@@ -35,7 +35,7 @@ public:
      * @param in class inherited from UnitDriver
      * @param inSimulatorDrivers must be new object, different with simulatorDrivers in RefUnitDriver
      */
-    TransDriver(bool inIsRef, std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : isRef(inIsRef), unit(std::move(in)), simulatorDrivers(std::move(inSimulatorDrivers)) {
+    TransDriver(int inResetCycles, bool inIsRef, std::shared_ptr<DriverModel> in, std::unordered_map<std::string, std::shared_ptr<DriverModel>> inSimulatorDrivers) : isRef(inIsRef), unit(std::move(in)), simulatorDrivers(std::move(inSimulatorDrivers)) {
         for (auto &simulatorDriver : simulatorDrivers) {
             bool res;
             //! unitUnit: unitUnit -> simulator
@@ -123,6 +123,13 @@ public:
             simulatorDriver.second->setTransaction(inTransaction);
         }
         return true;
+    }
+
+    void reset() override {
+        unit->reset();
+        for (auto &simulatorDriver : simulatorDrivers) {
+            simulatorDriver.second->reset();
+        }
     }
 
     bool drivingStep(bool isLast) override {
