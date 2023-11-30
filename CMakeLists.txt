@@ -19,6 +19,12 @@ set(CMAKE_BUILD_TYPE "Debug")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O0 -pg -finstrument-functions")
+else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
+endif()
+
 set(VERILATOR_ACTUAL_ROOT $ENV{VERILATOR_ROOT})
 
 if("${VERILATOR_ACTUAL_ROOT}" STREQUAL "")

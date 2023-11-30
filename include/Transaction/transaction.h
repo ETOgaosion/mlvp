@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -19,7 +20,7 @@ namespace MLVP::Transaction {
 class TransactionCounter
 {
 private:
-    MLVP::Type::Data transactionBaseID;
+    int transactionBaseID;
     std::mutex transactionCounterMutex;
 
     TransactionCounter() : transactionBaseID(0) {}
@@ -33,7 +34,7 @@ public:
         return instance;
     }
 
-    MLVP::Type::Data getTransactionID() {
+    int getTransactionID() {
         std::lock_guard<std::mutex> lock(transactionCounterMutex);
         return transactionBaseID++;
     }
@@ -54,16 +55,33 @@ private:
     MLVP::Type::PortsData refOutSignal;
 
 public:
-    int cycles;
-
-    TransactionTop() : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), cycles(0), inSignal({}) {
+    TransactionTop() : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), inSignal({}) {
         dutOutSignal.clear();
         refOutSignal.clear();
     }
     ~TransactionTop() = default;
-    explicit TransactionTop(MLVP::Type::PortsData newInSignal) : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), cycles(0), inSignal(std::move(newInSignal)) {
+    explicit TransactionTop(MLVP::Type::PortsData newInSignal) : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), inSignal(std::move(newInSignal)) {
         dutOutSignal.clear();
         refOutSignal.clear();
+    }
+
+    void print() {
+        std::cout << "TransactionTop:";
+        std::cout << "; dutStatus: " << (int)dutStatus;
+        std::cout << "; refStatus: " << (int)refStatus;
+        std::cout << "; inSignal: [";
+        for (auto &item : inSignal) {
+            std::cout << "{" << item.first << ": " << item.second << "}, ";
+        }
+        std::cout << "]; dutOutSignal: [";
+        for (auto &item : dutOutSignal) {
+            std::cout << "{" << item.first << ": " << item.second << "}, ";
+        }
+        std::cout << "]; refOutSignal: [";
+        for (auto &item : refOutSignal) {
+            std::cout << "{" << item.first << ": " << item.second << "}, ";
+        }
+        std::cout << "];";
     }
 
     bool isAllDone() {
@@ -86,18 +104,6 @@ public:
         else {
             dutStatus = TransactionReqStatus::DONE;
         }
-    }
-
-    int getCycles() const {
-        return cycles;
-    }
-
-    void incCycles() {
-        cycles++;
-    }
-
-    void setCycles(int inCycles) {
-        cycles = inCycles;
     }
 
     bool setInSignal(const std::string &portName, MLVP::Type::Data data) {
@@ -215,6 +221,19 @@ public:
         return id == req.id && src == req.src && dest == req.dest;
     }
 
+    void print() {
+        std::cout << "TransactionReq:";
+        std::cout << "; id: " << id;
+        std::cout << "; src: " << src;
+        std::cout << "; dest: " << dest;
+        std::cout << "; status: " << (int)status;
+        std::cout << "; inSignal: [";
+        for (auto &item : inSignal) {
+            std::cout << "{" << item.first << ": " << item.second << "}, ";
+        }
+        std::cout << "];";
+    }
+
     bool isNew() {
         return status == TransactionReqStatus::NEW;
     }
@@ -264,6 +283,18 @@ struct TransactionResp {
         return id == resp.id && src == resp.src && dest == resp.dest;
     }
 
+    void print() {
+        std::cout << "TransactionResp:";
+        std::cout << "; id: " << id;
+        std::cout << "; src: " << src;
+        std::cout << "; dest: " << dest;
+        std::cout << "; outSignal: [";
+        for (auto &item : outSignal) {
+            std::cout << "{" << item.first << ": " << item.second << "}, ";
+        }
+        std::cout << "];";
+    }
+
     void setOutSignal(MLVP::Type::PortsData inOutSignal) {
         outSignal = std::move(inOutSignal);
     }
@@ -293,7 +324,7 @@ struct TransactionResp {
 class Transaction
 {
 private:
-    MLVP::Type::Data transactionID;
+    int transactionID;
     std::mutex transactionMutex;
 
 public:
@@ -330,6 +361,24 @@ public:
         return transactionID;
     }
 
+    // ============================== Debug Log ==============================
+    /**
+     * @brief Print Option of Transaction
+     * - ALL: print all requests and responses, including inter-module and top level
+     * - TOP: only print top signals
+     * - DUT: dut signals
+     * - REF: ref signals
+     * 
+     */
+    enum class PrintOption {
+        ALL,
+        TOP,
+        DUT,
+        REF
+    };
+
+    void print(PrintOption option);
+
     // ============================== TransactionItem Methods ==============================
     void setOutSignal(const MLVP::Type::PortsData &inOutSignal, bool fromRef) {
         std::lock_guard<std::mutex> lock(transactionMutex);
@@ -339,11 +388,6 @@ public:
     void setOutSignal(const std::string &portName, MLVP::Type::Data data, bool fromRef) {
         std::lock_guard<std::mutex> lock(transactionMutex);
         transactionItems.setOutSignal(portName, data, fromRef);
-    }
-
-    void setCycle(int cycles) {
-        std::lock_guard<std::mutex> lock(transactionMutex);
-        transactionItems.setCycles(cycles);
     }
 
     const MLVP::Type::PortsData &getInSignal() {
@@ -356,10 +400,6 @@ public:
 
     const MLVP::Type::PortsData &getOutSignal(bool fromRef) {
         return transactionItems.getOutSignal(fromRef);
-    }
-
-    MLVP::Type::Data getCycles() const {
-        return transactionItems.getCycles();
     }
 
     // ================================== Request - Response method ====================================
@@ -390,7 +430,18 @@ public:
      * @param outSignal response port - data signal
      * @param fromRef whether the response is from 0 - dut or 1 - ref
      */
-    void addResponse(TransactionReq &req, MLVP::Type::PortsData outSignal, bool fromRef, bool burst);
+    void addResponse(TransactionReq &req, MLVP::Type::PortsData outSignal, bool fromRef);
+
+    /**
+     * @brief add response to a request
+     * 
+     * @param req recommand to pass raw request, notice that we use reference only to avoid copy overhead, but we cannot promise that user will use raw request
+     * @param outSignal response port - data signal
+     * @param fromRef whether the response is from 0 - dut or 1 - ref
+     * @param burst use burst mode to add several responses
+     * @param isLast whether the response is the last one
+     */
+    void addResponse(TransactionReq &req, MLVP::Type::PortsData outSignal, bool fromRef, bool burst, bool isLast);
 
     /**
      * @brief check whether there is a request from src to dest
@@ -499,6 +550,20 @@ public:
     bool compareRefDutResponse();
 
     /**
+     * @brief Compare option for compareRefDut function
+     * response index
+     *              - 2 for all
+     *              - 1 for all inter-modules response
+     *              - 0 for top response
+     * 
+     */
+    enum class CompareOption {
+        ALL,
+        INTER_MODULE,
+        TOP
+    };
+
+    /**
      * @brief compare the dut and ref response
      * 
      * @param type response index
@@ -508,7 +573,7 @@ public:
      * @return true same
      * @return false not same
      */
-    bool compareRefDut(int type);
+    bool compareRefDut(CompareOption type);
 
 };
 

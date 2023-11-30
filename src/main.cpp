@@ -31,6 +31,7 @@
 #include "Drivers/simulatorDriver.h"
 #include "Evaluator/evaluate.h"
 #include "Library/types.h"
+#include "Library/utils.h"
 #include "Reporter/reporter.h"
 #include "Transaction/transaction.h"
 #include "mlvp.h"
@@ -72,7 +73,17 @@ enum class SimpleBusCmd : Data {
 class DutCacheDriver : public DutUnitDriver {
 private:
     const shared_ptr<Vnutshellcache> top;
-    bool transactionStart = true;
+    int drivingTimes = 0;
+    //! You can use state machine to control transaction
+    enum class TransactionStartState {
+        //! start
+        START,
+        //! wait for request
+        WAIT_REQUEST,
+        //! received request
+        RECEIVED_REQUEST,
+    };
+    TransactionStartState transactionStartStateMachine = TransactionStartState::START;
 
 public:
     DutCacheDriver(int inResetCycles, int inDriverID, const string& inLogPath) : DutUnitDriver(inResetCycles, "cache", inDriverID, inLogPath), top(make_shared<Vnutshellcache>(contextp.get(), "top")) {
@@ -105,6 +116,8 @@ public:
      * @brief just execute one cycle
      */
     bool drivingStep(bool isLast) override {
+        bool transactionFinished = false;
+
         if(!contextp->gotFinish()) {
             bool hasData = false;
             contextp->timeInc(1);
@@ -116,10 +129,13 @@ public:
             top->io_flush = transaction->getInSignal("io_flush");
 
             //! in_if
-            if (transactionStart && top->io_in_req_ready) {
+            if (transactionStartStateMachine == TransactionStartState::START && top->io_in_req_ready) {
                 std::cout << "recieve a request" << std::endl;
+                transactionStartStateMachine = TransactionStartState::RECEIVED_REQUEST;
+            }
+            else if (transactionStartStateMachine == TransactionStartState::RECEIVED_REQUEST && top->io_in_req_ready) {
                 top->io_in_req_valid = true;
-                transactionStart = false;
+                transactionStartStateMachine = TransactionStartState::WAIT_REQUEST;
             }
             else {
                 top->io_in_req_valid = false;
@@ -133,7 +149,7 @@ public:
             top->io_in_resp_ready = 1;
 
             //! mem_if
-            top->io_out_mem_req_ready = channels[make_tuple("memory", "cache", false)]->getData("mem_req_ready", hasData);
+            top->io_out_mem_req_ready = true;
             top->io_out_mem_resp_valid = channels[make_tuple("cache", "memory", false)]->getData("mem_resp_valid", hasData);
             top->io_out_mem_resp_bits_cmd = channels[make_tuple("cache", "memory", false)]->getData("mem_resp_bits_cmd", hasData);
             top->io_out_mem_resp_bits_rdata = channels[make_tuple("cache", "memory", false)]->getData("mem_resp_bits_rdata", hasData);
@@ -148,10 +164,20 @@ public:
             top->io_out_coh_resp_ready = 0;
 
             //! mmio_if
-            top->io_mmio_req_ready = channels[make_tuple("mmio", "cache", false)]->getData("mmio_req_ready", hasData);
+            top->io_mmio_req_ready = true;
             top->io_mmio_resp_valid = channels[make_tuple("cache", "mmio", false)]->getData("mmio_resp_valid", hasData);
             top->io_mmio_resp_bits_cmd = channels[make_tuple("cache", "mmio", false)]->getData("mmio_resp_bits_cmd", hasData);
             top->io_mmio_resp_bits_rdata = channels[make_tuple("cache", "mmio", false)]->getData("mmio_resp_bits_rdata", hasData);
+            
+            cout << "Driving Times: " << drivingTimes++ 
+                 << " io_in_req_ready: " << (Data)top->io_in_req_ready
+                 << " io_in_req_valid: " << (Data)top->io_in_req_valid
+                 << " io_in_req_bits_addr: " << (Data)top->io_in_req_bits_addr
+                 << " io_in_req_bits_size: " << (Data)top->io_in_req_bits_size
+                 << " io_in_req_bits_cmd: " << (Data)top->io_in_req_bits_cmd
+                 << " io_in_req_bits_wmask: " << (Data)top->io_in_req_bits_wmask
+                 << " io_in_req_bits_wdata: " << (Data)top->io_in_req_bits_wdata
+                 << " io_in_req_bits_user: " << (Data)top->io_in_req_bits_user << endl;
 
             //! evaluate model
             top->eval();
@@ -166,7 +192,10 @@ public:
 
             if (transaction->getInSignal("reset")) {
                 transaction->transactionItems.setDone(false);
-                transactionStart = true;
+                transactionStartStateMachine = TransactionStartState::START;
+                if (isLast) {
+                    transactionFinished = true;
+                }
             }
 
             //! assign output signals
@@ -178,7 +207,10 @@ public:
                 transaction->setOutSignal("io_in_resp_bits_rdata", top->io_in_resp_bits_rdata, false);
                 transaction->setOutSignal("io_in_resp_bits_user", top->io_in_resp_bits_user, false);
                 transaction->transactionItems.setDone(false);
-                transactionStart = true;
+                transactionStartStateMachine = TransactionStartState::START;
+                if (isLast) {
+                    transactionFinished = true;
+                }
             }
 
             //! mem_if
@@ -190,7 +222,7 @@ public:
                     {"mem_req_bits_cmd", top->io_out_mem_req_bits_cmd},
                     {"mem_req_bits_wmask", top->io_out_mem_req_bits_wmask},
                     {"mem_req_bits_wdata", top->io_out_mem_req_bits_wdata}
-                }, true, false, false);
+                }, true, false);
             }
 
             //! mmio_if
@@ -202,31 +234,29 @@ public:
                     {"mmio_req_bits_cmd", top->io_mmio_req_bits_cmd},
                     {"mmio_req_bits_wmask", top->io_mmio_req_bits_wmask},
                     {"mmio_req_bits_wdata", top->io_mmio_req_bits_wdata}
-                }, true, false, false);
+                }, true, false);
             }
 
-            channels[make_tuple("cache", "cache", false)]->setData({{"victimWaymask", top->victimWaymask}}, false, false, false);
-
-            if (isLast) {
-                //! don't know why tfp dump lose last cycle
-                contextp->timeInc(1);
-                top->clock = !top->clock;
-                top->eval();
-                tfp->dump(contextp->time());
-                contextp->timeInc(1);
-                top->clock = !top->clock;
-                top->eval();
-                tfp->dump(contextp->time());
-                //! output coverage
-                Verilated::mkdir(logPath.c_str());
-                contextp->coveragep()->write((logPath + "/coverage.dat").c_str());
-                tfp->close();
-                top->final();
-            }
-            return true;
+            channels[make_tuple("cache", "cache", false)]->setData({{"victimWaymask", top->victimWaymask}}, false, false);
         }
-        //! reach test end
-        return false;
+
+        if (isLast && transactionFinished) {
+            //! don't know why tfp dump lose last cycle
+            contextp->timeInc(1);
+            top->clock = !top->clock;
+            top->eval();
+            tfp->dump(contextp->time());
+            contextp->timeInc(1);
+            top->clock = !top->clock;
+            top->eval();
+            tfp->dump(contextp->time());
+            //! output coverage
+            Verilated::mkdir(logPath.c_str());
+            contextp->coveragep()->write((logPath + "/coverage.dat").c_str());
+            tfp->close();
+            top->final();
+        }
+        return true;
     }
 };
 
@@ -239,6 +269,7 @@ public:
 
 /**
  * @brief RefUnitDriver, use a ref class cache simulate the dut logic
+ * @details if you hope to drive by cycles, use it as a wrapper of RefUnit, or else, just handle the transactions here
  * 
  */
 class RefCacheDriver : public RefUnitDriver {
@@ -273,12 +304,12 @@ public:
         };
         for (int i = 0; i < 7; i++) {
             request["req_bits_wdata"] = cacheData[setId][wayId][i];
-            channels[make_tuple("cache", "memory", true)]->setData(request, true, false, false);
+            channels[make_tuple("cache", "memory", true)]->setData(request, true, false);
             assert(channels[make_tuple("cache", "memory", true)]->getData("wb_resp_bits_cmd", hasData) == static_cast<Data>(SimpleBusCmd::writeResp));
         }
         request["wb_req_bits_cmd"] = static_cast<Data>(SimpleBusCmd::writeLast);
         request["wb_req_bits_wdata"] = cacheData[setId][wayId][7];
-        channels[make_tuple("cache", "memory", true)]->setData(request, true, false, false);
+        channels[make_tuple("cache", "memory", true)]->setData(request, true, false);
         assert(channels[make_tuple("cache", "memory", true)]->getData("wb_resp_bits_cmd", hasData) == static_cast<Data>(SimpleBusCmd::writeResp));
         cacheValid[setId][wayId] = 0;
     }
@@ -293,7 +324,7 @@ public:
             {"mem_req_bits_cmd", static_cast<Data>(SimpleBusCmd::readBurst)},
             {"mem_req_bits_wmask", 0},
             {"mem_req_bits_wdata", 0}
-        }, true, false, false);
+        }, true, false);
         cacheEmpty = false;
         cacheValid[setId][wayId] = 1;
         cacheDirty[setId][wayId] = 0;
@@ -328,6 +359,13 @@ public:
     bool drivingStep(bool isLast) override {
         bool hasData = false;
 
+        //! reset
+        if (transaction->getInSignal("reset")) {
+            reset();
+            transaction->transactionItems.setDone(true);
+            return true;
+        }
+
         auto addr = transaction->getInSignal("io_in_req_bits_addr");
         auto mmioAddr = addr >> 28;
         auto reqTag = addr >> 13;
@@ -348,7 +386,7 @@ public:
                 {"mmio_req_bits_cmd", inCmd},
                 {"mmio_req_bits_wmask", inWmask},
                 {"mmio_req_bits_wdata", inWdata}
-            }, true, false, false);
+            }, true, false);
             transaction->setOutSignal("io_in_resp_valid", 1, true);
             transaction->setOutSignal("io_in_resp_bits_cmd", channels[make_tuple("cache", "mmio", true)]->getData("mmio_resp_bits_cmd", hasData), true);
             transaction->setOutSignal("io_in_resp_bits_rdata", channels[make_tuple("cache", "mmio", true)]->getData("mmio_resp_bits_rdata", hasData), true);
@@ -421,7 +459,7 @@ public:
                 {"mem_req_bits_cmd", inCmd},
                 {"mem_req_bits_wmask", inWmask},
                 {"mem_req_bits_wdata", inWdata}
-            }, true, false, false);
+            }, true, false);
             for (int i = 1; i < 8; i++) {
                 pktId = (pktId + 1) % 8;
                 cacheData[reqSetId][hitId][pktId] = channels[make_tuple("cache", "memory", true)]->getData("mem_resp_bits_rdata", hasData);
@@ -450,30 +488,30 @@ public:
     }
 
     bool exec() override {
-        channels[make_tuple(self, cache, connectToRef)]->setData({{"memory_req_ready", true}}, false, false, false);
         bool hasData = false;
         auto cmd = channels[make_tuple(cache, self, connectToRef)]->getData("mem_req_bits_cmd", hasData);
+        auto addr = channels[make_tuple(cache, self, connectToRef)]->getData("mem_req_bits_addr", hasData);
         auto data = channels[make_tuple(cache, self, connectToRef)]->getData("mem_req_bits_wdata", hasData);
         if (cmd == static_cast<Data>(SimpleBusCmd::readBurst)) {
             for (int i = 0; i < 7; i++) {
                 channels[make_tuple(cache, self, connectToRef)]->setData({
                     {"mem_resp_valid", true},
-                    {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
+                    {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true, true, addr)},
                     {"mem_resp_bits_cmd", 0}
-                }, true, true, true);
+                }, true, true, true, false);
             }
             channels[make_tuple(cache, self, connectToRef)]->setData({
                 {"mem_resp_valid", true},
-                {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
+                {"mem_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true, true, addr)},
                 {"mem_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::readLast)}
-            }, true, true, true);
+            }, true, true, true, true);
         }
         else if (cmd == static_cast<Data>(SimpleBusCmd::writeBurst)) {
             channels[make_tuple(cache, self, connectToRef)]->setData({
                 {"mem_resp_valid", true},
                 {"mem_resp_bits_rdata", data},
                 {"mem_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::writeResp)}
-            }, true, true, false);
+            }, true, true);
         }
         return true;
     }
@@ -491,23 +529,23 @@ public:
     SimulatorMMIO(bool inConnectToRef, ChannelsType &inChannels, const shared_ptr<Transaction>& inTransaction) : Simulator(inConnectToRef, "mmio", inChannels, inTransaction), self("mmio"), cache("cache") {}
 
     bool exec() override {
-        channels[make_tuple(self, cache, connectToRef)]->setData({{"mmio_req_ready", true}}, false, false, false);
         bool hasData = false;
         auto cmd = channels[make_tuple(cache, self, connectToRef)]->getData("mmio_req_bits_cmd", hasData);
+        auto addr = channels[make_tuple(cache, self, connectToRef)]->getData("mmio_req_bits_addr", hasData);
         auto data = channels[make_tuple(cache, self, connectToRef)]->getData("mem_req_bits_wdata", hasData);
         if (cmd == static_cast<int>(SimpleBusCmd::read)) {
             channels [make_tuple(cache, self, connectToRef)]->setData({
                 {"mmio_resp_valid", true},
-                {"mmio_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true)},
+                {"mmio_resp_bits_rdata", RandomGenerator::getInstance().getRandomData(64, true, true, addr)},
                 {"mmio_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::readLast)}
-            }, true, true, false);
+            }, true, true);
         }
         else if (cmd == static_cast<int>(SimpleBusCmd::write)) {
             channels [make_tuple(cache, self, connectToRef)]->setData({
                 {"mmio_resp_valid", true},
                 {"mmio_resp_bits_rdata", data},
                 {"mmio_resp_bits_cmd", static_cast<Data>(SimpleBusCmd::writeResp)}
-            }, true, true, false);
+            }, true, true);
         }
         return true;
     }
@@ -587,45 +625,35 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
     switch (testPoint) {
     case TestPoint::READ_ONCE: {
         model.setSize(1);
-        model.addPortTestSpec("io_in_req_bits_addr", 0, 0, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
-            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b00111);
-        }, nullopt);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, 0, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::read));
         break;
     }
     case TestPoint::READ_MEMORY: {
         model.setSize(100000);
         //! endIndex can be negative cache count down value, convinient isn't it?
         //! for random generator mode, first element of vector is max value
-        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
-            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
-        }, nullopt);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::read));
         break;
     }
     case TestPoint::WRITE_MEMORY: {
         model.setSize(100000);
-        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
-            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
-        }, nullopt);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::write));
         break;
     }
     case TestPoint::READWRITE_MEMORY: {
         model.setSize(100000);
         //! a trick: sv use cmd[3:1] == 3'b000, so only last elements is random, whole value can only be 0 or 1
-        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 32), [](Data data) {
-            return  ((data >> 30) != 0b01) && ((data >> 28) != 0b0011);
-        }, nullopt);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
         break;
     }
     case TestPoint::MMIO: {
         model.setSize(100000);
         //! a trick: use constrain cache filter value is too slow, may retry many timers, use post handler is much faster, one time generate
         model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), nullopt, [](Data data) {
-            if (RandomGenerator::getInstance().getRandomData(1)) {
-                return data | (0b01 << 30) | (RandomGenerator::getInstance().getRandomData(3) << 28);
-            } else {
-                return data | (0b0011 << 28);
-            }
+            return data | ((RandomGenerator::getInstance().getRandomData(4) + 3) << 28);
         });
         break;
     }
@@ -701,8 +729,8 @@ int main() {
     generateTest(model, TestPoint::READ_ONCE);
     TransactionLauncher::setupTransaction(userTests->getTests());
     std::vector<std::pair<std::shared_ptr<SimulatorDriver>, std::shared_ptr<SimulatorDriver>>> simuDrivers = {
-        {make_pair(make_shared<MemorySimulatorDriver>(10, false), make_shared<MemorySimulatorDriver>(10, true))},
-        {make_pair(make_shared<MMIOSimulatorDriver>(10, false), make_shared<MMIOSimulatorDriver>(10, true))}
+        {make_pair(make_shared<MemorySimulatorDriver>(1, false), make_shared<MemorySimulatorDriver>(1, true))},
+        {make_pair(make_shared<MMIOSimulatorDriver>(1, false), make_shared<MMIOSimulatorDriver>(1, true))}
     };
     SimulatorlDriverRegistrar::getInstance().registerSimulatorDriver(simuDrivers);
     Spreader<DutCacheDriver, RefCacheDriver, VerilatorReporter> spreader(10, "log/cache", "report/cache", {

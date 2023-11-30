@@ -56,6 +56,9 @@ public:
             return false;
         }
         transaction = std::move(inTransaction);
+        for (auto &channel : channels) {
+            channel.second->setTransaction(transaction);
+        }
         return true;
     }
 

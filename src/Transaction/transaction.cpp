@@ -13,6 +13,7 @@
 
 #include <bits/ranges_algo.h>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -26,6 +27,39 @@ using namespace MLVP::Database;
 using namespace MLVP::Type;
 using namespace MLVP::Library;
 
+void Transaction::print(PrintOption option) {
+    std::cout << "Transaction: ";
+    cout << "; transactionID: " <<  transactionID << endl;
+    if (option == PrintOption::ALL || option == PrintOption::TOP) {
+        transactionItems.print();
+    }
+    cout << endl;
+    if (option == PrintOption::ALL || option == PrintOption::DUT) {
+        for (auto &transaction : dutUserTransactions) {
+            cout << "{" << transaction.first.first << " -> {" << transaction.first.second << ": ";
+            for (auto &item : transaction.second) {
+                item.first.print();
+                for (auto &resp : item.second) {
+                    resp.print();
+                }
+            }
+            cout << "}}" << endl;
+        }
+    }
+    if (option == PrintOption::ALL || option == PrintOption::REF) {
+        for (auto &transaction : refUserTransactions) {
+            cout << "{" << transaction.first.first << " -> {" << transaction.first.second << ": ";
+            for (auto &item : transaction.second) {
+                item.first.print();
+                for (auto &resp : item.second) {
+                    resp.print();
+                }
+            }
+            cout << "}}" << endl;
+        }
+    }
+}
+
 TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, const PortsData &inSignal, bool fromRef) {
     lock_guard<mutex> lock(transactionMutex);
     auto modulePair = make_pair(inSrc, inDest);
@@ -33,11 +67,13 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     if (userTransaction.contains(modulePair)) {
         TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest, inSignal);
         userTransaction[modulePair].emplace_back(make_pair(req, vector<TransactionResp>({})));
+        userTransaction[modulePair].back().first.setHandling();
         return userTransaction[modulePair].back().first;
     }
     else {
         TransactionReq req(0, inSrc, inDest, inSignal);
         userTransaction.emplace(modulePair, vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())});
+        userTransaction[modulePair].back().first.setHandling();
         return userTransaction[modulePair].back().first;
     }
 }
@@ -49,16 +85,37 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
     if (userTransaction.contains(modulePair)) {
         TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest);
         userTransaction[modulePair].emplace_back(make_pair(req, vector<TransactionResp>({})));
+        userTransaction[modulePair].back().first.setHandling();
         return userTransaction[modulePair].back().first;
     }
     else {
         TransactionReq req(0, inSrc, inDest);
         userTransaction.emplace(modulePair, vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())});
+        userTransaction[modulePair].back().first.setHandling();
         return userTransaction[modulePair].back().first;
     }
 }
 
-void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef, bool burst) {
+void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef) {
+    lock_guard<mutex> lock(transactionMutex);
+    auto modulePair = make_pair(req.src, req.dest);
+    auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
+    if (!userTransaction.contains(modulePair)) {
+        throw runtime_error("Transaction request not found");
+    }
+    auto &transactionItem = userTransaction[modulePair][req.id];
+    TransactionResp resp(make_shared<TransactionReq>(transactionItem.first), req.dest, req.src, std::move(outSignal));
+    if (transactionItem.second.empty()) {
+        transactionItem.second.emplace_back(resp);
+    }
+    else {
+        transactionItem.second.back() = std::move(resp);
+    }
+    transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.back()));
+    transactionItem.first.setDone();
+}
+
+void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef, bool burst, bool isLast) {
     lock_guard<mutex> lock(transactionMutex);
     auto modulePair = make_pair(req.src, req.dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
@@ -79,7 +136,9 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
         }
     }
     transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.back()));
-    transactionItem.first.setDone();
+    if ((!burst) || (burst && isLast)) {
+        transactionItem.first.setDone();
+    }
 }
 
 std::vector<int> Transaction::checkRequest(const std::string &src, const std::string &dest, bool fromRef) {
@@ -221,21 +280,21 @@ bool Transaction::compareRefDutResponse() {
     return true;
 }
 
-bool Transaction::compareRefDut(int type) {
+bool Transaction::compareRefDut(CompareOption type) {
     bool res = true;
     switch (type)
     {
-    case 2:
+    case CompareOption::ALL:
         res &= transactionItems.compareRefDut();
         if (!res) {
             return res;
         }
         res &= compareRefDutResponse();
         break;
-    case 1:
+    case CompareOption::INTER_MODULE:
         res &= compareRefDutResponse();
         break;
-    case 0:
+    case CompareOption::TOP:
         res &= transactionItems.compareRefDut();
         break;
     
