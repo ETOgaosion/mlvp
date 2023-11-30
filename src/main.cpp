@@ -105,7 +105,7 @@ public:
         //! generate trace
         tfp->dump(contextp->time());
 
-        // a cycle is down and up, so eval twice
+        //! a cycle is down and up, so eval twice
         contextp->timeInc(1);
         top->clock = !top->clock;
         top->eval();
@@ -184,7 +184,7 @@ public:
             //! generate trace
             tfp->dump(contextp->time());
 
-            // a cycle is down and up, so eval twice
+            //! a cycle is down and up, so eval twice
             contextp->timeInc(1);
             top->clock = !top->clock;
             top->eval();
@@ -265,7 +265,7 @@ public:
  * @brief Ref Cache simulator, if you hope to drive by cycles, use it
  * 
  */
-// class RefCache : public Ref {};
+//! class RefCache : public Ref {};
 
 /**
  * @brief RefUnitDriver, use a ref class cache simulate the dut logic
@@ -379,7 +379,7 @@ public:
         auto inWdata = transaction->getInSignal("io_in_req_bits_wdata");
         auto inUser = transaction->getInSignal("io_in_req_bits_user");
 
-        // mmio
+        //! mmio
         if (mmioAddr >= 3 && mmioAddr <= 7) {
             channels[make_tuple("cache", "mmio", true)]->setData({
                 {"mmio_req_valid", 1},
@@ -397,7 +397,7 @@ public:
         }
         
 
-        // check hitness
+        //! check hitness
         Data bitmask = bytesmask2bitsmask((char)inWmask);
         int hitId = -1;
         bool needRefill = false;
@@ -451,7 +451,7 @@ public:
             transaction->transactionItems.setDone(true);
         }
 
-        // !< refill
+        //! refill
         if (needRefill) {
             auto pktId = getPacketId((int)addr);
             channels[make_tuple("cache", "memory", true)] -> setData({
