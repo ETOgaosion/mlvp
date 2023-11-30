@@ -5,7 +5,7 @@
  * @version 0.1
  * @date 2023-11-24
  * 
- * @copyright Copyright (c) 2023
+ * @copyright Copyright (c) Gao Sion, BOSC Institute, 2023
  * 
  */
 

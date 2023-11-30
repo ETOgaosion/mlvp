@@ -5,7 +5,7 @@
  * @version 0.1
  * @date 2023-11-24
  * 
- * @copyright Copyright (c) 2023
+ * @copyright Copyright (c) Gao Sion, BOSC Institute, 2023
  * 
  */
 
@@ -38,11 +38,11 @@ int Driver::driving(const std::shared_ptr<std::string> &errorMsgRaw) {
             auto dutFuture = std::async(std::launch::async, [this, i] {
                 return dutDriver->drivingStep(i == transactions.size() - 1);
             });
-            dutResult = dutFuture.get();
-            std::cout << "dut finished, dutResult: " << dutResult << std::endl;
             auto refFuture = std::async(std::launch::async, [this, i] {
                 return refDriver->drivingStep(i == transactions.size() - 1);
             });
+            dutResult = dutFuture.get();
+            std::cout << "dut finished, dutResult: " << dutResult << std::endl;
             refResult = refFuture.get();
             std::cout << "ref finished, refResult: " << refResult << std::endl;
         }

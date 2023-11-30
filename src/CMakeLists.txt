@@ -14,12 +14,12 @@ aux_source_directory(. SRC)
 
 add_executable(mlvp 
 $<TARGET_OBJECTS:Config>
+$<TARGET_OBJECTS:Library>
 $<TARGET_OBJECTS:Database>
 $<TARGET_OBJECTS:Transaction>
 $<TARGET_OBJECTS:Drivers>
 $<TARGET_OBJECTS:Simulator>
 $<TARGET_OBJECTS:Evaluator>
-# $<TARGET_OBJECTS:Library>
 $<TARGET_OBJECTS:Reporter>
 $<TARGET_OBJECTS:Spreader>
 $<TARGET_OBJECTS:TestGenerator>
@@ -28,12 +28,12 @@ ${SRC}
 
 # add_library(mlvp-lib SHARED 
 # $<TARGET_OBJECTS:Config>
+# $<TARGET_OBJECTS:Library>
 # $<TARGET_OBJECTS:Database>
 # $<TARGET_OBJECTS:Transaction>
 # $<TARGET_OBJECTS:Drivers>
 # $<TARGET_OBJECTS:Simulator>
 # $<TARGET_OBJECTS:Evaluator>
-# # $<TARGET_OBJECTS:Library>
 # $<TARGET_OBJECTS:Reporter>
 # $<TARGET_OBJECTS:Spreader>
 # $<TARGET_OBJECTS:TestGenerator>

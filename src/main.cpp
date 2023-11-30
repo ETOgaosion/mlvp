@@ -5,7 +5,7 @@
  * @version 0.1
  * @date 2023-11-24
  * 
- * @copyright Copyright (c) 2023
+ * @copyright Copyright (c) Gao Sion, BOSC Institute, 2023
  * 
  */
 
@@ -116,6 +116,9 @@ public:
      * @brief just execute one cycle
      */
     bool drivingStep(bool isLast) override {
+        //! Sync Global Timer
+        GlobalUserTimer::getInstance().incTime();
+
         bool transactionFinished = false;
 
         if(!contextp->gotFinish()) {
@@ -357,6 +360,8 @@ public:
     }
 
     bool drivingStep(bool isLast) override {
+        //! Sync Global Timer
+        GlobalUserTimer::sync();
         bool hasData = false;
 
         //! reset
@@ -566,6 +571,8 @@ public:
     void reset() override {}
 
     bool drivingStep(bool isLast) override {
+        //! Sync Global Timer
+        GlobalUserTimer::sync();
         return memory.exec();
     }
 
@@ -583,6 +590,8 @@ public:
     void reset() override {}
 
     bool drivingStep(bool isLast) override {
+        //! Sync Global Timer
+        GlobalUserTimer::sync();
         return mmio.exec();
     }
 
@@ -744,6 +753,9 @@ int main() {
             {"mmio", simuDrivers[1].second}
         }))
     });
+    //! set synchronize timer, we use GlobalUserTimer for example, you can use GlobalMachineTimer as alternative, check Library/utils.h
+    //! if you use GlobalMachineTimer, use this to initialize interval (default 10 ns)
+    // GlobalMachineTimer::getInstance().setUnitTimeInterval(100);
     spreader.reset();
     spreader.execute();
     return 0;
