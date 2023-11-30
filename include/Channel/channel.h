@@ -13,6 +13,7 @@
 
 #include <iterator>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <tuple>
 #include <unordered_map>
@@ -21,6 +22,7 @@
 #include <vector>
 #include <future>
 #include <iostream>
+#include <shared_mutex>
 
 #include "Library/types.h"
 #include "Transaction/transaction.h"
@@ -35,6 +37,7 @@ template <class T>
 class Channel {
 private:
     bool fromRef;
+    std::shared_mutex channelMutex;
     std::string source;
     std::shared_ptr<T> sourceDriver; //! source driver, actually a UnitDriver Child
     std::string destination;
@@ -42,12 +45,16 @@ private:
     MLVP::Type::PortsData data;
     std::multimap<std::string, MLVP::Type::Data> multiData;
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
+    std::vector<std::future<void>> responseFutures;
 
 public:
     Channel() = delete;
     ~Channel() = default;
 
-    Channel(bool inFromRef, std::string inSource, std::shared_ptr<T> inSourceDriver, std::string inDestination, std::shared_ptr<T> inDestDriver) : fromRef(inFromRef), source(std::move(inSource)), sourceDriver(std::move(inSourceDriver)), destination(std::move(inDestination)), destDriver(std::move(inDestDriver)) { data.clear(); }
+    Channel(bool inFromRef, std::string inSource, std::shared_ptr<T> inSourceDriver, std::string inDestination, std::shared_ptr<T> inDestDriver) : fromRef(inFromRef), source(std::move(inSource)), sourceDriver(std::move(inSourceDriver)), destination(std::move(inDestination)), destDriver(std::move(inDestDriver)) {
+        data.clear();
+        responseFutures.clear();
+    }
 
     void print() {
         std::cout << "Channel: " << source << " -> " << destination << std::endl;
@@ -70,10 +77,12 @@ public:
     }
 
     bool hasData(const std::string &inName) {
+        std::shared_lock<std::shared_mutex> lock(channelMutex);
         return data.contains(inName);
     }
 
     void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse) {
+        std::unique_lock<std::shared_mutex> lock(channelMutex);
         //! Notice that merge will not cover the raw elements, so we need to reverse
         std::swap(data, inData);
         data.merge(inData);
@@ -86,9 +95,9 @@ public:
                 transaction->addRequest(source, destination, inData, fromRef);
                 //! sync start response thread
                 if (USE_THREADS) {
-                    auto responseFuture = std::async(std::launch::async, [this]{
+                    responseFutures.push_back(std::async(std::launch::async, [this]{
                         destDriver->drivingStep(false);
-                    });
+                    }));
                 }
                 else {
                     destDriver->drivingStep(false);
@@ -100,6 +109,7 @@ public:
     }
 
     void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse, bool burst, bool isLast) {
+        std::unique_lock<std::shared_mutex> lock(channelMutex);
         //! Notice that merge will not cover the raw elements, so we need to reverse
         if (burst) {
             for (auto &i : inData) {
@@ -119,9 +129,9 @@ public:
                 transaction->addRequest(source, destination, inData, fromRef);
                 //! sync start response thread
                 if (USE_THREADS) {
-                    auto responseFuture = std::async(std::launch::async, [this]{
+                    responseFutures.push_back(std::async(std::launch::async, [this]{
                         destDriver->drivingStep(false);
-                    });
+                    }));
                 }
                 else {
                     destDriver->drivingStep(false);
@@ -133,6 +143,7 @@ public:
     }
 
     MLVP::Type::Data getData(const std::string &inName, bool &exist) {
+        std::shared_lock<std::shared_mutex> lock(channelMutex);
         if (multiData.contains(inName)) {
             exist = true;
             auto startData = multiData.find(inName);

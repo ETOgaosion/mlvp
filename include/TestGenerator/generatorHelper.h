@@ -14,7 +14,6 @@
 #include <utility>
 #include <vector>
 #include <string>
-#include <mutex>
 #include <memory>
 #include <random>
 #include <unordered_map>
@@ -30,7 +29,6 @@ namespace MLVP::TestGenerator {
 class GeneratedUserTest {
 private:
     std::shared_ptr<MLVP::Type::SerialTestSet> userTest;
-    std::mutex userTestMutex;
 
 public:
     GeneratedUserTest() : userTest(std::make_shared<MLVP::Type::SerialTestSet>()) {}

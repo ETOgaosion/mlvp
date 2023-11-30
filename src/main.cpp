@@ -366,6 +366,8 @@ public:
             return true;
         }
 
+        cout << "ref get transaction" << endl;
+
         auto addr = transaction->getInSignal("io_in_req_bits_addr");
         auto mmioAddr = addr >> 28;
         auto reqTag = addr >> 13;

@@ -39,7 +39,7 @@ include_directories(${VERILATOR_INCLUDE_DIRS})
 include_directories(include)
 include_directories(third-party/include)
 
-add_definitions( -DUSE_THREADS=false )
+add_definitions( -DUSE_THREADS=true )
 add_definitions( -DBUGDEGREE=Degree::LOW )
 
 add_subdirectory(src)

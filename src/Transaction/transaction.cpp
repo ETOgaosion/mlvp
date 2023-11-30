@@ -15,6 +15,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <shared_mutex>
 #include <utility>
 #include <vector>
 #include "Database/database.h"
@@ -28,7 +29,7 @@ using namespace MLVP::Type;
 using namespace MLVP::Library;
 
 void Transaction::print(PrintOption option) {
-    std::cout << "Transaction: ";
+    cout << "Transaction: ";
     cout << "; transactionID: " <<  transactionID << endl;
     if (option == PrintOption::ALL || option == PrintOption::TOP) {
         transactionItems.print();
@@ -61,7 +62,7 @@ void Transaction::print(PrintOption option) {
 }
 
 TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, const PortsData &inSignal, bool fromRef) {
-    lock_guard<mutex> lock(transactionMutex);
+    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
     auto modulePair = make_pair(inSrc, inDest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (userTransaction.contains(modulePair)) {
@@ -79,7 +80,7 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
 }
 
 TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, bool fromRef) {
-    lock_guard<mutex> lock(transactionMutex);
+    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
     auto modulePair = make_pair(inSrc, inDest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (userTransaction.contains(modulePair)) {
@@ -97,7 +98,7 @@ TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDes
 }
 
 void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef) {
-    lock_guard<mutex> lock(transactionMutex);
+    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
     auto modulePair = make_pair(req.src, req.dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (!userTransaction.contains(modulePair)) {
@@ -116,7 +117,7 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
 }
 
 void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef, bool burst, bool isLast) {
-    lock_guard<mutex> lock(transactionMutex);
+    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
     auto modulePair = make_pair(req.src, req.dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (!userTransaction.contains(modulePair)) {
@@ -141,8 +142,8 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
     }
 }
 
-std::vector<int> Transaction::checkRequest(const std::string &src, const std::string &dest, bool fromRef) {
-    lock_guard<mutex> lock(transactionMutex);
+vector<int> Transaction::checkRequest(const string &src, const string &dest, bool fromRef) {
+    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
     auto modulePair = make_pair(src, dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (!userTransaction.contains(modulePair)) {
@@ -158,35 +159,38 @@ std::vector<int> Transaction::checkRequest(const std::string &src, const std::st
 }
 
 bool Transaction::checkTransactionFinish() {
-        bool finished = transactionItems.isAllDone();
-        if (finished) {
-            if (dutUserTransactions.size() != refUserTransactions.size()) {
-                return false;
-            }
-            else {
-                for (auto &dutTrans : dutUserTransactions) {
-                    if (!refUserTransactions.contains(dutTrans.first) || dutTrans.second.size() != refUserTransactions[dutTrans.first].size()) {
-                        return false;
-                    }
-                    else {
-                        for (int i = 0; i < dutTrans.second.size(); i++) {
-                            if (!dutTrans.second[i].first.isDone() || !refUserTransactions[dutTrans.first][i].first.isDone()) {
-                                return false;
-                            }
+    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
+    bool finished = transactionItems.isAllDone();
+    if (finished) {
+        if (dutUserTransactions.size() != refUserTransactions.size()) {
+            return false;
+        }
+        else {
+            for (auto &dutTrans : dutUserTransactions) {
+                if (!refUserTransactions.contains(dutTrans.first) || dutTrans.second.size() != refUserTransactions[dutTrans.first].size()) {
+                    return false;
+                }
+                else {
+                    for (int i = 0; i < dutTrans.second.size(); i++) {
+                        if (!dutTrans.second[i].first.isDone() || !refUserTransactions[dutTrans.first][i].first.isDone()) {
+                            return false;
                         }
-                        return true;
                     }
+                    return true;
                 }
             }
         }
-        return true;
+    }
+    return true;
 }
 
 bool Transaction::checkTransactionFinish(bool isRef) {
-        return transactionItems.isAllDone(isRef);
+    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
+    return transactionItems.isAllDone(isRef);
 }
 
 vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bool fromRef) {
+    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
     vector<reference_wrapper<TransactionResp>> transactionResp;
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     for (auto &transaction : userTransaction) {
@@ -207,7 +211,7 @@ vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bo
 
 bool Transaction::compareRefDutResponse(TransactionReq &dutReq, TransactionReq &refReq) {
     if (!dutReq.getResp() || !refReq.getResp()) {
-        throw std::runtime_error("Transaction response not found");
+        throw runtime_error("Transaction response not found");
     }
     if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(dutReq.src, dutReq.dest, true)) {
         return MLVP::Evaluator::Evaluator::getInstance().eval(dutReq.src, dutReq.dest, true, dutReq.inSignal, dutReq.getResp()->outSignal);
@@ -217,13 +221,13 @@ bool Transaction::compareRefDutResponse(TransactionReq &dutReq, TransactionReq &
     }
 }
 
-bool Transaction::compareRefDutResponse(const std::string &src, const std::string &dest, int dutReqId, int refReqId) {
+bool Transaction::compareRefDutResponse(const string &src, const string &dest, int dutReqId, int refReqId) {
     auto modulePair = std::make_pair(src, dest);
     if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
-        throw std::runtime_error("Transaction request not found");
+        throw runtime_error("Transaction request not found");
     }
     if (dutUserTransactions[modulePair][dutReqId].second.empty() || refUserTransactions[modulePair][refReqId].second.empty()) {
-        throw std::runtime_error("Transaction response not found");
+        throw runtime_error("Transaction response not found");
     }
     if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(src, dest, true)) {
         for (int i = 0; i < dutUserTransactions[modulePair][dutReqId].second.size(); i++) {
@@ -246,10 +250,10 @@ bool Transaction::compareRefDutResponse(const std::string &src, const std::strin
 bool Transaction::compareRefDutResponse(const TransactionReq &req) {
     auto modulePair = std::make_pair(req.src, req.dest);
     if (!dutUserTransactions.contains(modulePair) || !refUserTransactions.contains(modulePair)) {
-        throw std::runtime_error("Transaction request not found");
+        throw runtime_error("Transaction request not found");
     }
     if (dutUserTransactions[modulePair][req.id].second.empty() || refUserTransactions[modulePair][req.id].second.empty()) {
-        throw std::runtime_error("Transaction response not found");
+        throw runtime_error("Transaction response not found");
     }
     if (MLVP::Evaluator::Evaluator::getInstance().hasValidUserEval(req.src, req.dest, true)) {
         for (int i = 0; i < dutUserTransactions[modulePair][req.id].second.size(); i++) {

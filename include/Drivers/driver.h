@@ -14,7 +14,6 @@
 #include <iostream>
 #include <string>
 #include <memory>
-#include <future>
 #include <utility>
 
 #include "Drivers/driverModel.h"
@@ -88,44 +87,7 @@ public:
         refDriver->reset();
     }
 
-    int driving(const std::shared_ptr<std::string> &errorMsgRaw) {
-        bool dutResult, refResult;
-        if (USE_THREADS) {
-            for (int i = 0; i < transactions.size(); i++) {
-                if (dutDriver->checkTransactionFinish() && refDriver->checkTransactionFinish()) {
-                    auto sendDutFuture = std::async(std::launch::async, [this] {
-                        sendTransaction(false);
-                    });
-                    auto sendRefFuture = std::async(std::launch::async, [this] {
-                        sendTransaction(true);
-                    });
-                    sendDutFuture.wait();
-                    sendRefFuture.wait();
-                    incTransPtr();
-                }
-                auto dutFuture = std::async(std::launch::async, [this, i] {
-                    return dutDriver->drivingStep(i == transactions.size() - 1);
-                });
-                dutResult = dutFuture.get();
-                auto refFuture = std::async(std::launch::async, [this, i] {
-                    return refDriver->drivingStep(i == transactions.size() - 1);
-                });
-                refResult = refFuture.get();
-            }
-        }
-        else {
-            for (int i = 0; i < transactions.size(); i++) {
-                if (dutDriver->checkTransactionFinish() && refDriver->checkTransactionFinish()) {
-                    sendTransaction(false);
-                    sendTransaction(true);
-                    incTransPtr();
-                }
-                dutResult = dutDriver->drivingStep(i == transactions.size() - 1);
-                refResult = refDriver->drivingStep(i == transactions.size() - 1);
-            }
-        }
-        return -1;
-    }
+    int driving(const std::shared_ptr<std::string> &errorMsgRaw);
 
 
 };

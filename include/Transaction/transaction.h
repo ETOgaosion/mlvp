@@ -1,11 +1,13 @@
 #pragma once
 
 #include <iostream>
+#include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <utility>
 #include <vector>
 #include <memory>
-#include <mutex>
+#include <shared_mutex>
 #include <map>
 #include <optional>
 #include <utility>
@@ -325,7 +327,7 @@ class Transaction
 {
 private:
     int transactionID;
-    std::mutex transactionMutex;
+    std::shared_mutex transactionMutex;
 
 public:
     /**
@@ -381,24 +383,27 @@ public:
 
     // ============================== TransactionItem Methods ==============================
     void setOutSignal(const MLVP::Type::PortsData &inOutSignal, bool fromRef) {
-        std::lock_guard<std::mutex> lock(transactionMutex);
+        std::unique_lock<std::shared_mutex> lock(transactionMutex);
         transactionItems.setOutSignal(inOutSignal, fromRef);
     }
 
     void setOutSignal(const std::string &portName, MLVP::Type::Data data, bool fromRef) {
-        std::lock_guard<std::mutex> lock(transactionMutex);
+        std::unique_lock<std::shared_mutex> lock(transactionMutex);
         transactionItems.setOutSignal(portName, data, fromRef);
     }
 
     const MLVP::Type::PortsData &getInSignal() {
+        std::shared_lock<std::shared_mutex> lock(transactionMutex);
         return transactionItems.getInSignal();
     }
 
     MLVP::Type::Data getInSignal(const std::string &portName) {
+        std::shared_lock<std::shared_mutex> lock(transactionMutex);
         return transactionItems.getInSignal(portName);
     }
 
     const MLVP::Type::PortsData &getOutSignal(bool fromRef) {
+        std::shared_lock<std::shared_mutex> lock(transactionMutex);
         return transactionItems.getOutSignal(fromRef);
     }
 
@@ -464,6 +469,7 @@ public:
      * @return const TransactionReq& 
      */
     TransactionReq &getRequest(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
+        std::shared_lock<std::shared_mutex> lock(transactionMutex);
         if (reqId == -1) {
             return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().first : dutUserTransactions[std::make_pair(src, dest)].back().first;
         }
@@ -479,6 +485,7 @@ public:
      * @return int 
      */
     int checkRequestNumber(const std::string &src, const std::string &dest, bool fromRef) {
+        std::shared_lock<std::shared_mutex> lock(transactionMutex);
         return fromRef ? (int)refUserTransactions[std::make_pair(src, dest)].size() : (int)dutUserTransactions[std::make_pair(src, dest)].size();
     }
 
@@ -493,6 +500,7 @@ public:
      * @return const TransactionResp& 
      */
     TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, int respId, bool fromRef) {
+        std::shared_lock<std::shared_mutex> lock(transactionMutex);
         if (reqId == -1) {
             if (respId == -1) {
                 return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.back() : dutUserTransactions[std::make_pair(src, dest)].back().second.back();
@@ -517,6 +525,7 @@ public:
      * @return false 
      */
     bool checkResponseExistence(const std::string &src, const std::string &dest, int index, bool fromRef) {
+        std::shared_lock<std::shared_mutex> lock(transactionMutex);
         return fromRef ? refUserTransactions[std::make_pair(dest, src)][index].second.size() : dutUserTransactions[std::make_pair(dest, src)][index].second.size();
     }
 
