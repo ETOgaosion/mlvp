@@ -127,28 +127,28 @@ bool PortSpecGeneratorModel::checkAllPortSpec() {
     return true;
 }
 
-bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const SerialData &value) {
+bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const SerialData &value, bool isBitWidth) {
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
-        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, value);
+        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, value, isBitWidth);
         portTestSpecs[portName].back().value = value;
     }
     else {
-        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value)));
+        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value, isBitWidth)));
     }
     return res;
 }
 
-bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const SerialData &value, optional<function<bool(Data)>> inConstrain, optional<function<Data(Data)>> inPostHandler) {
+bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, int endIndex, GeneratorType generatorType, const SerialData &value, bool isBitWidth, optional<function<bool(Data)>> inConstrain, optional<function<Data(Data)>> inPostHandler) {
     bool res = true;
     if (portTestSpecs.contains(portName)) {
         res &= checkPortSpec(portName, startIndex, endIndex, generatorType);
-        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, value, inConstrain, inPostHandler);
+        portTestSpecs[portName].emplace_back(portName, startIndex, endIndex, generatorType, value, isBitWidth, inConstrain, inPostHandler);
         portTestSpecs[portName].back().value = value;
     }
     else {
-        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value, inConstrain, inPostHandler)));
+        portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value, isBitWidth, inConstrain, inPostHandler)));
     }
     return res;
 }

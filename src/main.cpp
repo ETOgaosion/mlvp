@@ -26,14 +26,6 @@
  * 
  */
 
-#include "Channel/channel.h"
-#include "Drivers/driverModel.h"
-#include "Drivers/simulatorDriver.h"
-#include "Evaluator/evaluate.h"
-#include "Library/types.h"
-#include "Library/utils.h"
-#include "Reporter/reporter.h"
-#include "Transaction/transaction.h"
 #include "mlvp.h"
 #include "MCVPack/BareDut/NutshellCache/Vnutshellcache.h"
 
@@ -479,7 +471,7 @@ public:
 // ============================= Simulator and Simulator Driver =================================
 
 /**
- * @brief Simulator Memory and MMIO
+ * @brief Simulator Memory and MMIO, Notice that Ref and Dut reuse same Simulator class
  * 
  */
 class SimulatorMemory : public Simulator {
@@ -636,34 +628,34 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
     switch (testPoint) {
     case TestPoint::READ_ONCE: {
         model.setSize(1);
-        model.addPortTestSpec("io_in_req_bits_addr", 0, 0, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
-        model.addPortTestSpec("io_in_req_bits_cmd", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::read));
+        model.addPortTestSpec("io_in_req_bits_addr", 0, 0, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), true);
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, 0, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::read), false);
         break;
     }
     case TestPoint::READ_MEMORY: {
         model.setSize(100000);
         //! endIndex can be negative cache count down value, convinient isn't it?
         //! for random generator mode, first element of vector is max value
-        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
-        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::read));
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), true);
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::read), false);
         break;
     }
     case TestPoint::WRITE_MEMORY: {
         model.setSize(100000);
-        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
-        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::write));
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), true);
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::DIRECT_INPUT, SerialData(1, (Data)SimpleBusCmd::write), false);
         break;
     }
     case TestPoint::READWRITE_MEMORY: {
         model.setSize(100000);
         //! a trick: sv use cmd[3:1] == 3'b000, so only last elements is random, whole value can only be 0 or 1
-        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28));
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), true);
         break;
     }
     case TestPoint::MMIO: {
         model.setSize(100000);
         //! a trick: use constrain cache filter value is too slow, may retry many timers, use post handler is much faster, one time generate
-        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), nullopt, [](Data data) {
+        model.addPortTestSpec("io_in_req_bits_addr", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 28), false, nullopt, [](Data data) {
             return data | ((RandomGenerator::getInstance().getRandomData(4) + 3) << 28);
         });
         break;
@@ -671,9 +663,9 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
     case TestPoint::RESET: {
         model.setSize(100000);
         for (int i = 0; i < 1000; i++) {
-            model.addPortTestSpec("reset", i * 100, i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+            model.addPortTestSpec("reset", i * 100, i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1), false);
         }
-        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1));
+        model.addPortTestSpec("io_in_req_bits_cmd", 0, -1, GeneratorType::RANDOM_GENERATOR, SerialData(1, 1), false);
         break;
     }
     case TestPoint::SEQ: {
@@ -682,9 +674,9 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
         for (int i = 0; i < 20000; i++) {
             addr.push_back(i);
         }
-        model.addPortTestSpec("io_in_req_bits_addr", 0, 20000 - 1, GeneratorType::DIRECT_INPUT, addr);
-        model.addPortTestSpec("reset", 20000, 20000, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 20001, -1, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, 20000 - 1, GeneratorType::DIRECT_INPUT, addr, false);
+        model.addPortTestSpec("reset", 20000, 20000, GeneratorType::DIRECT_INPUT, SerialData(1, 1), false);
+        model.addPortTestSpec("io_in_req_bits_addr", 20001, -1, GeneratorType::DIRECT_INPUT, addr, false);
         break;
     }
     case TestPoint::ALL: {
@@ -693,11 +685,11 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
         for (int i = 0; i < 40000; i++) {
             addr.push_back(i);
         }
-        model.addPortTestSpec("io_in_req_bits_addr", 0, 40000 - 1, GeneratorType::DIRECT_INPUT, addr);
-        model.addPortTestSpec("reset", 40000, 40000, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
-        model.addPortTestSpec("io_in_req_bits_addr", 40001, 80000, GeneratorType::DIRECT_INPUT, addr);
+        model.addPortTestSpec("io_in_req_bits_addr", 0, 40000 - 1, GeneratorType::DIRECT_INPUT, addr, false);
+        model.addPortTestSpec("reset", 40000, 40000, GeneratorType::DIRECT_INPUT, SerialData(1, 1), false);
+        model.addPortTestSpec("io_in_req_bits_addr", 40001, 80000, GeneratorType::DIRECT_INPUT, addr, false);
         for (int i = 0; i < 1000; i++) {
-            model.addPortTestSpec("reset", 120001 + i * 100, 120001 + i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1));
+            model.addPortTestSpec("reset", 120001 + i * 100, 120001 + i * 100, GeneratorType::DIRECT_INPUT, SerialData(1, 1), false);
         }
         break;
     }
@@ -710,7 +702,7 @@ void generateTest(PortSpecGeneratorModel &model,TestPoint testPoint) {
 
 // ========================== Evaluator ============================
 /**
- * @brief You can use a function cache register evaluators as you need
+ * @brief You can use a function to register evaluators as you need
  * 
  */
 void registerEvaluator() {

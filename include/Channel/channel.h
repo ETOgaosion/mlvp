@@ -44,6 +44,7 @@ private:
     std::shared_ptr<T> destDriver; //! dest driver, actually a UnitDriver Child
     MLVP::Type::PortsData data;
     std::multimap<std::string, MLVP::Type::Data> multiData;
+    std::unordered_map<std::string, int> multiDataIndex;
     std::shared_ptr<MLVP::Transaction::Transaction> transaction;
     std::vector<std::future<void>> responseFutures;
 
@@ -114,6 +115,7 @@ public:
         if (burst) {
             for (auto &i : inData) {
                 multiData.insert(std::make_pair(i.first, i.second));
+                multiDataIndex[i.first] = 0;
             }
         }
         else {
@@ -146,10 +148,19 @@ public:
         std::shared_lock<std::shared_mutex> lock(channelMutex);
         if (multiData.contains(inName)) {
             exist = true;
-            auto startData = multiData.find(inName);
-            auto ret = startData->second;
-            multiData.erase(startData);
-            return ret;
+            auto range = multiData.equal_range(inName);
+            int index = 0;
+            for (auto it = range.first; it != range.second; ++it) {
+                if (index == multiDataIndex[inName]) {
+                    multiDataIndex[inName]++;
+                    return it->second;
+                }
+                else {
+                    index++;
+                }
+            }
+            exist = false;
+            return 0;
         
         }
         if (data.contains(inName)) {

@@ -121,16 +121,26 @@ struct PortTestSpec {
      * @param inGeneratorType 
      * @param inValue if generator type is DIRECT_INPUT, this value will be used as default value, else it will be seen as the <b>width</b> of this port, convert with verilog [max : 0]'s max + 1
      */
-    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, MLVP::Type::SerialData inValue) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), value(std::move(inValue)) {
+    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, MLVP::Type::SerialData inValue, bool isBitWidth) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), value(std::move(inValue)) {
         if (generatorType == GeneratorType::RANDOM_GENERATOR) {
-            maxVal = (MLVP::Type::Data)std::pow(2, value.front()) - 1;
+            if (isBitWidth) {
+                maxVal = (MLVP::Type::Data)std::pow(2, value.front()) - 1;
+            }
+            else {
+                maxVal = value.front();
+            }
         }
         constrain = [](MLVP::Type::Data in) { return true; };
         postHandler = [](MLVP::Type::Data in) { return in; };
     }
-    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, MLVP::Type::SerialData inValue, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), value(std::move(inValue)) {
+    PortTestSpec(std::string inPortName, int inStartIndex, int inEndIndex, GeneratorType inGeneratorType, MLVP::Type::SerialData inValue, bool isBitWidth, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler) : portName(std::move(inPortName)), startIndex(inStartIndex), endIndex(inEndIndex), generatorType(inGeneratorType), value(std::move(inValue)) {
         if (generatorType == GeneratorType::RANDOM_GENERATOR) {
-            maxVal = (MLVP::Type::Data)std::pow(2, value.front()) - 1;
+            if (isBitWidth) {
+                maxVal = (MLVP::Type::Data)std::pow(2, value.front()) - 1;
+            }
+            else {
+                maxVal = value.front();
+            }
         }
         if (inConstrain.has_value()) {
             constrain = inConstrain.value();
@@ -230,7 +240,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MLVP::Type::SerialData &value);
+    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MLVP::Type::SerialData &value, bool isBitWidth);
 
     /**
      * @brief add detailed spec for transaction port
@@ -248,7 +258,7 @@ public:
      * @return true 
      * @return false 
      */
-    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MLVP::Type::SerialData &value, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler);
+    bool addPortTestSpec(std::string portName, int startIndex, int endIndex, GeneratorType generatorType, const MLVP::Type::SerialData &value, bool isBitWidth, std::optional<std::function<bool(MLVP::Type::Data)>> inConstrain, std::optional<std::function<MLVP::Type::Data(MLVP::Type::Data)>> inPostHandler);
 
     /**
      * @brief Generate serial test according to the spec
