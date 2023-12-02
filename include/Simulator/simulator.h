@@ -37,6 +37,12 @@ public:
 
     explicit Simulator(bool inConnectToRef, std::string inName, ChannelsType &inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : connectToRef(inConnectToRef), name(std::move(inName)), channels(inChannels), transaction(std::move(inTransaction)) {}
 
+    virtual void resetChannels() {
+        for (auto & it : channels) {
+            it.second->reset();
+        }
+    }
+
     /**
      * @brief Use return value to check if transaction is done
      * 

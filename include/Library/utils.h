@@ -16,7 +16,6 @@
 #include <cmath>
 #include <chrono>
 #include <mutex>
-#include <shared_mutex>
 #include <unordered_map>
 
 #include "Library/types.h"
@@ -26,6 +25,7 @@ class RandomGenerator {
 private:
     std::mt19937 rng;
     std::unordered_map<MLVP::Type::Data, MLVP::Type::Data> dataCache;
+    std::mutex randomGeneratorMutex;
     RandomGenerator() : rng(std::chrono::steady_clock::now().time_since_epoch().count()) {
         dataCache.clear();
     }
@@ -91,12 +91,20 @@ public:
      * @param unitTimeInterval
      */
     void setUnitTimeInterval(int inUnitTimeInterval) {
-        std::lock_guard<std::mutex> lock(timerMutex);
+        if (USE_THREADS) {
+            timerMutex.lock();
+        }
         if (this->unitTimeInterval) {
+            if (USE_THREADS) {
+                timerMutex.unlock();
+            }
             throw std::runtime_error("unit time interval has been set");
         }
         else {
             this->unitTimeInterval = inUnitTimeInterval;
+        }
+        if (USE_THREADS) {
+            timerMutex.unlock();
         }
     }
 
@@ -107,17 +115,25 @@ public:
      * @param force force cover the unit time interval, if not force, we will throw exception if unit time interval has been set
      */
     void setUnitTimeInterval(int inUnitTimeInterval, bool force) {
-        std::lock_guard<std::mutex> lock(timerMutex);
+        if (USE_THREADS) {
+            timerMutex.lock();
+        }
         if (force) {
             this->unitTimeInterval = inUnitTimeInterval;
         }
         else {
             if (this->unitTimeInterval) {
+            if (USE_THREADS) {
+                timerMutex.unlock();
+            }
                 throw std::runtime_error("unit time interval has been set");
             }
             else {
                 this->unitTimeInterval = inUnitTimeInterval;
             }
+        }
+        if (USE_THREADS) {
+            timerMutex.unlock();
         }
     }
 
@@ -143,7 +159,7 @@ public:
 class GlobalUserTimer {
 private:
     MLVP::Type::Data time = 0;
-    std::shared_mutex timerMutex;
+    std::mutex timerMutex;
 
     GlobalUserTimer() = default;
 
@@ -156,13 +172,24 @@ public:
     }
 
     void incTime() {
-        std::unique_lock<std::shared_mutex> lock(timerMutex);
+        if (USE_THREADS) {
+            timerMutex.lock();
+        }
         time++;
+        if (USE_THREADS) {
+            timerMutex.unlock();
+        }
     }
 
     MLVP::Type::Data getTime() {
-        std::shared_lock<std::shared_mutex> lock(timerMutex);
-        return time;
+        if (USE_THREADS) {
+            timerMutex.lock();
+        }
+        MLVP::Type::Data ret = time;
+        if (USE_THREADS) {
+            timerMutex.unlock();
+        }
+        return ret;
     }
 
     static void sync() {

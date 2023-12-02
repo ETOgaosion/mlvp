@@ -24,39 +24,51 @@ int Driver::driving(const std::shared_ptr<std::string> &errorMsgRaw) {
     bool dutResult, refResult;
     if (USE_THREADS) {
         for (int i = 0; i < transactions.size(); i++) {
-            if (dutDriver->checkTransactionFinish() && refDriver->checkTransactionFinish()) {
-                auto sendDutFuture = std::async(std::launch::async, [this] {
-                    sendTransaction(false);
-                });
-                auto sendRefFuture = std::async(std::launch::async, [this] {
-                    sendTransaction(true);
-                });
-                sendDutFuture.wait();
-                sendRefFuture.wait();
-                incTransPtr();
+            if (!dutDriver->checkTransactionFinish()) {
+                throw runtime_error("Error: transaction is not finished yet");
             }
+            auto sendDutFuture = std::async(std::launch::async, [this] {
+                sendTransaction(false);
+            });
+            auto sendRefFuture = std::async(std::launch::async, [this] {
+                sendTransaction(true);
+            });
+            sendDutFuture.wait();
+            sendRefFuture.wait();
+            incTransPtr();
             auto dutFuture = std::async(std::launch::async, [this, i] {
                 return dutDriver->drivingStep(i == transactions.size() - 1);
             });
             auto refFuture = std::async(std::launch::async, [this, i] {
                 return refDriver->drivingStep(i == transactions.size() - 1);
             });
-            dutResult = dutFuture.get();
-            std::cout << "dut finished, dutResult: " << dutResult << std::endl;
-            refResult = refFuture.get();
-            std::cout << "ref finished, refResult: " << refResult << std::endl;
+            dutFuture.wait();
+            refFuture.wait();
+            if (!transactions[i]->compareRefDut(MLVP::Transaction::Transaction::CompareOption::ALL)) {
+                throw runtime_error("Error: transaction compare failed");
+            }
+            dutDriver->resetChannels();
+            refDriver->resetChannels();
+            std::cout << "driver times: " << driveTime++ << std::endl;
         }
     }
     else {
         for (int i = 0; i < transactions.size(); i++) {
-            if (dutDriver->checkTransactionFinish() && refDriver->checkTransactionFinish()) {
-                sendTransaction(false);
-                sendTransaction(true);
-                incTransPtr();
+            if (!dutDriver->checkTransactionFinish()) {
+                throw runtime_error("Error: transaction is not finished yet");
             }
+            sendTransaction(false);
+            sendTransaction(true);
+            incTransPtr();
             dutResult = dutDriver->drivingStep(i == transactions.size() - 1);
             refResult = refDriver->drivingStep(i == transactions.size() - 1);
+            if (!transactions[i]->compareRefDut(MLVP::Transaction::Transaction::CompareOption::ALL)) {
+                throw runtime_error("Error: transaction compare failed");
+            }
+            dutDriver->resetChannels();
+            refDriver->resetChannels();
+            std::cout << "driver times: " << driveTime++ << std::endl;
         }
     }
-    return -1;
+    return 0;
 }

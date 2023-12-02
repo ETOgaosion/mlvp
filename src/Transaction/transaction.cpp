@@ -15,7 +15,8 @@
 #include <functional>
 #include <iostream>
 #include <memory>
-#include <shared_mutex>
+#include <stdexcept>
+#include <string>
 #include <utility>
 #include <vector>
 #include "Database/database.h"
@@ -62,46 +63,67 @@ void Transaction::print(PrintOption option) {
 }
 
 TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, const PortsData &inSignal, bool fromRef) {
-    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
     auto modulePair = make_pair(inSrc, inDest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (userTransaction.contains(modulePair)) {
         TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest, inSignal);
         userTransaction[modulePair].emplace_back(make_pair(req, vector<TransactionResp>({})));
         userTransaction[modulePair].back().first.setHandling();
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
         return userTransaction[modulePair].back().first;
     }
     else {
         TransactionReq req(0, inSrc, inDest, inSignal);
         userTransaction.emplace(modulePair, vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())});
         userTransaction[modulePair].back().first.setHandling();
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
         return userTransaction[modulePair].back().first;
     }
 }
 
 TransactionReq &Transaction::addRequest(const string &inSrc, const string &inDest, bool fromRef) {
-    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
     auto modulePair = make_pair(inSrc, inDest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (userTransaction.contains(modulePair)) {
         TransactionReq req((int)userTransaction[modulePair].size(), inSrc, inDest);
         userTransaction[modulePair].emplace_back(make_pair(req, vector<TransactionResp>({})));
         userTransaction[modulePair].back().first.setHandling();
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
         return userTransaction[modulePair].back().first;
     }
     else {
         TransactionReq req(0, inSrc, inDest);
         userTransaction.emplace(modulePair, vector<pair<TransactionReq, vector<TransactionResp>>>{make_pair(req, vector<TransactionResp>())});
         userTransaction[modulePair].back().first.setHandling();
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
         return userTransaction[modulePair].back().first;
     }
 }
 
 void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef) {
-    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
     auto modulePair = make_pair(req.src, req.dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (!userTransaction.contains(modulePair)) {
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
         throw runtime_error("Transaction request not found");
     }
     auto &transactionItem = userTransaction[modulePair][req.id];
@@ -114,13 +136,21 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
     }
     transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.back()));
     transactionItem.first.setDone();
+    if (USE_THREADS) {
+        transactionMutex.unlock();
+    }
 }
 
 void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fromRef, bool burst, bool isLast) {
-    unique_lock<shared_mutex> lockWriteRead(transactionMutex);
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
     auto modulePair = make_pair(req.src, req.dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (!userTransaction.contains(modulePair)) {
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
         throw runtime_error("Transaction request not found");
     }
     auto &transactionItem = userTransaction[modulePair][req.id];
@@ -137,16 +167,48 @@ void Transaction::addResponse(TransactionReq &req, PortsData outSignal, bool fro
         }
     }
     transactionItem.first.setResp(std::make_shared<TransactionResp>(transactionItem.second.back()));
-    if ((!burst) || (burst && isLast)) {
+    if (!burst) {
         transactionItem.first.setDone();
+    }
+    else {
+        if (isLast) {
+            transactionItem.first.setDone();
+        }
+    }
+    if (USE_THREADS) {
+        transactionMutex.unlock();
+    }
+}
+
+void Transaction::setRequestDone(TransactionReq &req, bool fromRef) {
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
+    auto modulePair = make_pair(req.src, req.dest);
+    auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
+    if (!userTransaction.contains(modulePair)) {
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
+        throw runtime_error("Transaction request not found");
+    }
+    auto &transactionItem = userTransaction[modulePair][req.id];
+    transactionItem.first.setDone();
+    if (USE_THREADS) {
+        transactionMutex.unlock();
     }
 }
 
 vector<int> Transaction::checkRequest(const string &src, const string &dest, bool fromRef) {
-    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
     auto modulePair = make_pair(src, dest);
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     if (!userTransaction.contains(modulePair)) {
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
         throw runtime_error("Transaction request not found");
     }
     vector<int> res;
@@ -155,47 +217,46 @@ vector<int> Transaction::checkRequest(const string &src, const string &dest, boo
             res.emplace_back(i);
         }
     }
+    if (USE_THREADS) {
+        transactionMutex.unlock();
+    }
     return res;
 }
 
 bool Transaction::checkTransactionFinish() {
-    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
-    bool finished = transactionItems.isAllDone();
-    if (finished) {
-        if (dutUserTransactions.size() != refUserTransactions.size()) {
-            return false;
-        }
-        else {
-            for (auto &dutTrans : dutUserTransactions) {
-                if (!refUserTransactions.contains(dutTrans.first) || dutTrans.second.size() != refUserTransactions[dutTrans.first].size()) {
-                    return false;
-                }
-                else {
-                    for (int i = 0; i < dutTrans.second.size(); i++) {
-                        if (!dutTrans.second[i].first.isDone() || !refUserTransactions[dutTrans.first][i].first.isDone()) {
-                            return false;
-                        }
-                    }
-                    return true;
-                }
-            }
-        }
+    if (USE_THREADS) {
+        transactionMutex.lock();
     }
-    return true;
+    auto res = dutTotalStatus == TransactionStatus::DONE && refTotalStatus == TransactionStatus::DONE;
+    if (USE_THREADS) {
+        transactionMutex.unlock();
+    }
+    return res;
 }
 
 bool Transaction::checkTransactionFinish(bool isRef) {
-    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
-    return transactionItems.isAllDone(isRef);
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
+    auto res = isRef ? refTotalStatus == TransactionStatus::DONE : dutTotalStatus == TransactionStatus::DONE;
+    if (USE_THREADS) {
+        transactionMutex.unlock();
+    }
+    return res;
 }
 
 vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bool fromRef) {
-    shared_lock<shared_mutex> lockWriteRead(transactionMutex);
+    if (USE_THREADS) {
+        transactionMutex.lock();
+    }
     vector<reference_wrapper<TransactionResp>> transactionResp;
     auto &userTransaction = fromRef ? refUserTransactions : dutUserTransactions;
     for (auto &transaction : userTransaction) {
         for (auto &transactionItems : transaction.second) {
             if (transactionItems.second.empty()) {
+                if (USE_THREADS) {
+                    transactionMutex.unlock();
+                }
                 throw runtime_error("Transaction response not found");
             }
             else {
@@ -205,6 +266,9 @@ vector<reference_wrapper<TransactionResp>> Transaction::getAllTransactionResp(bo
                 });
             }
         }
+    }
+    if (USE_THREADS) {
+        transactionMutex.unlock();
     }
     return transactionResp;
 }
@@ -277,6 +341,12 @@ bool Transaction::compareRefDutResponse() {
     for (auto &transaction : dutUserTransactions) {
         for (int i = 0; i < transaction.second.size(); i++) {
             if (!compareRefDutResponse(transaction.first.first, transaction.first.second, i, i)) {
+                transaction.second[i].first.print();
+                for (auto &resp : transaction.second[i].second) {
+                    resp.print();
+                    cout << endl;
+                }
+                throw runtime_error("transactionItems check failed " + to_string(i) + " " + transaction.first.first + " " + transaction.first.second);
                 return false;
             }
         }
@@ -291,6 +361,9 @@ bool Transaction::compareRefDut(CompareOption type) {
     case CompareOption::ALL:
         res &= transactionItems.compareRefDut();
         if (!res) {
+            transactionItems.print();
+            cout << endl;
+            throw runtime_error("transactionItems check failed");
             return res;
         }
         res &= compareRefDutResponse();

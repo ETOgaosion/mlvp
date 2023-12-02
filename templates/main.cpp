@@ -41,6 +41,7 @@ public:
 
         if(!contextp->gotFinish()) {
             // Your implementation, connect data in transactions and channel to DUT
+            //! Write your state machine here, <b>Notice that we will detect when your transaction totally done to launch new one, you MUST figure out what is transaction in your case clearly</b>
         }
         if (isLast && transactionFinished) {
             //! don't know why tfp dump lose last cycle

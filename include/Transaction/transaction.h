@@ -2,12 +2,10 @@
 
 #include <iostream>
 #include <mutex>
-#include <shared_mutex>
 #include <string>
 #include <utility>
 #include <vector>
 #include <memory>
-#include <shared_mutex>
 #include <map>
 #include <optional>
 #include <utility>
@@ -37,12 +35,15 @@ public:
     }
 
     int getTransactionID() {
-        std::lock_guard<std::mutex> lock(transactionCounterMutex);
+        if (USE_THREADS) {
+            std::lock_guard<std::mutex> lock(transactionCounterMutex);
+        }
         return transactionBaseID++;
     }
 };
 
-enum class TransactionReqStatus {
+enum class TransactionStatus {
+    INVALID,
     NEW,
     HANDLING,
     DONE
@@ -50,19 +51,19 @@ enum class TransactionReqStatus {
 
 class TransactionTop {
 private:
-    TransactionReqStatus dutStatus;
-    TransactionReqStatus refStatus;
+    TransactionStatus dutStatus;
+    TransactionStatus refStatus;
     MLVP::Type::PortsData inSignal;
     MLVP::Type::PortsData dutOutSignal;
     MLVP::Type::PortsData refOutSignal;
 
 public:
-    TransactionTop() : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), inSignal({}) {
+    TransactionTop() : dutStatus(TransactionStatus::NEW), refStatus(TransactionStatus::NEW), inSignal({}) {
         dutOutSignal.clear();
         refOutSignal.clear();
     }
     ~TransactionTop() = default;
-    explicit TransactionTop(MLVP::Type::PortsData newInSignal) : dutStatus(TransactionReqStatus::NEW), refStatus(TransactionReqStatus::NEW), inSignal(std::move(newInSignal)) {
+    explicit TransactionTop(MLVP::Type::PortsData newInSignal) : dutStatus(TransactionStatus::NEW), refStatus(TransactionStatus::NEW), inSignal(std::move(newInSignal)) {
         dutOutSignal.clear();
         refOutSignal.clear();
     }
@@ -87,24 +88,24 @@ public:
     }
 
     bool isAllDone() {
-        return dutStatus == TransactionReqStatus::DONE && refStatus == TransactionReqStatus::DONE;
+        return dutStatus == TransactionStatus::DONE && refStatus == TransactionStatus::DONE;
     }
 
     bool isAllDone(bool isRef) {
         if (isRef) {
-            return refStatus == TransactionReqStatus::DONE;
+            return refStatus == TransactionStatus::DONE;
         }
         else {
-            return dutStatus == TransactionReqStatus::DONE;
+            return dutStatus == TransactionStatus::DONE;
         }
     }
 
     void setDone(bool fromRef) {
         if (fromRef) {
-            refStatus = TransactionReqStatus::DONE;
+            refStatus = TransactionStatus::DONE;
         }
         else {
-            dutStatus = TransactionReqStatus::DONE;
+            dutStatus = TransactionStatus::DONE;
         }
     }
 
@@ -132,25 +133,25 @@ public:
 
     const MLVP::Type::PortsData &getOutSignal(bool fromRef) {
         if (fromRef) {
-            refStatus = TransactionReqStatus::HANDLING;
+            refStatus = TransactionStatus::HANDLING;
             return refOutSignal;
         }
         else {
-            dutStatus = TransactionReqStatus::HANDLING;
+            dutStatus = TransactionStatus::HANDLING;
             return dutOutSignal;
         }
     }
 
     MLVP::Type::Data getOutSignal(const std::string &portName, bool fromRef) {
         if (fromRef) {
-            refStatus = TransactionReqStatus::HANDLING;
+            refStatus = TransactionStatus::HANDLING;
             if (!refOutSignal.contains(portName)) {
                 throw std::runtime_error("Transaction out signal port name not found");
             }
             return refOutSignal[portName];
         }
         else {
-            dutStatus = TransactionReqStatus::HANDLING;
+            dutStatus = TransactionStatus::HANDLING;
             if (!dutOutSignal.contains(portName)) {
                 throw std::runtime_error("Transaction out signal port name not found");
             }
@@ -160,34 +161,22 @@ public:
 
     void setOutSignal(const MLVP::Type::PortsData &inOutSignal, bool fromRef) {
         if (fromRef) {
-            refStatus = TransactionReqStatus::DONE;
+            refStatus = TransactionStatus::DONE;
             refOutSignal = inOutSignal;
         }
         else {
-            dutStatus = TransactionReqStatus::DONE;
+            dutStatus = TransactionStatus::DONE;
             dutOutSignal = inOutSignal;
         }
     }
 
     void setOutSignal(const std::string &portName, MLVP::Type::Data data, bool fromRef) {
         if (fromRef) {
-            refStatus = TransactionReqStatus::DONE;
-            if (refOutSignal.contains(portName)) {
-                if (MLVP::Library::bugHandleDegree != MLVP::Library::Degree::SKIP) {
-                    throw std::runtime_error("Transaction out signal port name conflict");
-                }
-                return;
-            }
+            refStatus = TransactionStatus::DONE;
             refOutSignal.emplace(portName, data);
         }
         else {
-            dutStatus = TransactionReqStatus::DONE;
-            if (dutOutSignal.contains(portName)) {
-                if (MLVP::Library::bugHandleDegree != MLVP::Library::Degree::SKIP) {
-                    throw std::runtime_error("Transaction out signal port name conflict");
-                }
-                return;
-            }
+            dutStatus = TransactionStatus::DONE;
             dutOutSignal.emplace(portName, data);
         }
     }
@@ -204,7 +193,7 @@ struct TransactionResp;
 
 class TransactionReq {
 private:
-    TransactionReqStatus status;
+    TransactionStatus status;
     std::shared_ptr<TransactionResp> resp;
 
 public:
@@ -216,8 +205,8 @@ public:
     TransactionReq() = delete;
     ~TransactionReq() = default;
 
-    TransactionReq(int inId, std::string inSrc, std::string inDest) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW) { inSignal.clear(); }
-    TransactionReq(int inId, std::string inSrc, std::string inDest, MLVP::Type::PortsData  newInSignal) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionReqStatus::NEW), inSignal(std::move(newInSignal)) {}
+    TransactionReq(int inId, std::string inSrc, std::string inDest) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionStatus::NEW) { inSignal.clear(); }
+    TransactionReq(int inId, std::string inSrc, std::string inDest, MLVP::Type::PortsData  newInSignal) : id(inId), src(std::move(inSrc)), dest(std::move(inDest)), status(TransactionStatus::NEW), inSignal(std::move(newInSignal)) {}
 
     bool operator==(const TransactionReq &req) const {
         return id == req.id && src == req.src && dest == req.dest;
@@ -237,25 +226,25 @@ public:
     }
 
     bool isNew() {
-        return status == TransactionReqStatus::NEW;
+        return status == TransactionStatus::NEW;
     }
 
     bool isDone() {
-        return status == TransactionReqStatus::DONE;
+        return status == TransactionStatus::DONE;
     }
 
     void setHandling() {
-        if (status != TransactionReqStatus::NEW) {
+        if (status != TransactionStatus::NEW) {
             throw std::runtime_error("Transaction request not new");
         }
-        status = TransactionReqStatus::HANDLING;
+        status = TransactionStatus::HANDLING;
     }
 
     void setDone() {
-        if (status != TransactionReqStatus::HANDLING) {
+        if (status != TransactionStatus::HANDLING) {
             throw std::runtime_error("Transaction request not handling");
         }
-        status = TransactionReqStatus::DONE;
+        status = TransactionStatus::DONE;
     }
 
     void setResp(std::shared_ptr<TransactionResp> inResp) {
@@ -327,7 +316,9 @@ class Transaction
 {
 private:
     int transactionID;
-    std::shared_mutex transactionMutex;
+    TransactionStatus dutTotalStatus = TransactionStatus::INVALID;
+    TransactionStatus refTotalStatus = TransactionStatus::INVALID;
+    std::mutex transactionMutex;
 
 public:
     /**
@@ -363,6 +354,25 @@ public:
         return transactionID;
     }
 
+    TransactionStatus getTotalStatus(bool isRef) const {
+        return isRef ? refTotalStatus : dutTotalStatus;
+    }
+
+    void setTransactionNew(bool isRef) {
+        auto &totalStatus = isRef ? refTotalStatus : dutTotalStatus;
+        totalStatus = TransactionStatus::NEW;
+    }
+
+    void setTransactionHandling(bool isRef) {
+        auto &totalStatus = isRef ? refTotalStatus : dutTotalStatus;
+        totalStatus = TransactionStatus::HANDLING;
+    }
+
+    void setTransactionDone(bool isRef) {
+        auto &totalStatus = isRef ? refTotalStatus : dutTotalStatus;
+        totalStatus = TransactionStatus::DONE;
+    }
+
     // ============================== Debug Log ==============================
     /**
      * @brief Print Option of Transaction
@@ -383,28 +393,56 @@ public:
 
     // ============================== TransactionItem Methods ==============================
     void setOutSignal(const MLVP::Type::PortsData &inOutSignal, bool fromRef) {
-        std::unique_lock<std::shared_mutex> lock(transactionMutex);
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
         transactionItems.setOutSignal(inOutSignal, fromRef);
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
     }
 
     void setOutSignal(const std::string &portName, MLVP::Type::Data data, bool fromRef) {
-        std::unique_lock<std::shared_mutex> lock(transactionMutex);
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
         transactionItems.setOutSignal(portName, data, fromRef);
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
     }
 
     const MLVP::Type::PortsData &getInSignal() {
-        std::shared_lock<std::shared_mutex> lock(transactionMutex);
-        return transactionItems.getInSignal();
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
+        const auto &res = transactionItems.getInSignal();
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
+        return res;
     }
 
     MLVP::Type::Data getInSignal(const std::string &portName) {
-        std::shared_lock<std::shared_mutex> lock(transactionMutex);
-        return transactionItems.getInSignal(portName);
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
+        auto res = transactionItems.getInSignal(portName);
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
+        return res;
     }
 
     const MLVP::Type::PortsData &getOutSignal(bool fromRef) {
-        std::shared_lock<std::shared_mutex> lock(transactionMutex);
-        return transactionItems.getOutSignal(fromRef);
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
+        const auto &res = transactionItems.getOutSignal(fromRef);
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
+        return res;
     }
 
     // ================================== Request - Response method ====================================
@@ -444,9 +482,10 @@ public:
      * @param outSignal response port - data signal
      * @param fromRef whether the response is from 0 - dut or 1 - ref
      * @param burst use burst mode to add several responses
-     * @param isLast whether the response is the last one
      */
     void addResponse(TransactionReq &req, MLVP::Type::PortsData outSignal, bool fromRef, bool burst, bool isLast);
+
+    void setRequestDone(TransactionReq &req, bool fromRef);
 
     /**
      * @brief check whether there is a request from src to dest
@@ -469,11 +508,21 @@ public:
      * @return const TransactionReq& 
      */
     TransactionReq &getRequest(const std::string &src, const std::string &dest, int reqId, bool fromRef) {
-        std::shared_lock<std::shared_mutex> lock(transactionMutex);
-        if (reqId == -1) {
-            return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().first : dutUserTransactions[std::make_pair(src, dest)].back().first;
+        if (USE_THREADS) {
+            transactionMutex.lock();
         }
-        return fromRef ? refUserTransactions[std::make_pair(src, dest)][reqId].first : dutUserTransactions[std::make_pair(src, dest)][reqId].first;
+        if (reqId == -1) {
+            auto &ret = fromRef ? refUserTransactions[std::make_pair(src, dest)].back().first : dutUserTransactions[std::make_pair(src, dest)].back().first;
+            if (USE_THREADS) {
+                transactionMutex.unlock();
+            }
+            return ret;
+        }
+        auto & ret = fromRef ? refUserTransactions[std::make_pair(src, dest)][reqId].first : dutUserTransactions[std::make_pair(src, dest)][reqId].first;
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
+        return ret;
     }
 
     /**
@@ -485,8 +534,14 @@ public:
      * @return int 
      */
     int checkRequestNumber(const std::string &src, const std::string &dest, bool fromRef) {
-        std::shared_lock<std::shared_mutex> lock(transactionMutex);
-        return fromRef ? (int)refUserTransactions[std::make_pair(src, dest)].size() : (int)dutUserTransactions[std::make_pair(src, dest)].size();
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
+        auto res = fromRef ? (int)refUserTransactions[std::make_pair(src, dest)].size() : (int)dutUserTransactions[std::make_pair(src, dest)].size();
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
+        return res;
     }
 
     /**
@@ -500,17 +555,31 @@ public:
      * @return const TransactionResp& 
      */
     TransactionResp &getResponse(const std::string &src, const std::string &dest, int reqId, int respId, bool fromRef) {
-        std::shared_lock<std::shared_mutex> lock(transactionMutex);
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
         if (reqId == -1) {
             if (respId == -1) {
-                return fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.back() : dutUserTransactions[std::make_pair(src, dest)].back().second.back();
+                auto &ret = fromRef ? refUserTransactions[std::make_pair(src, dest)].back().second.back() : dutUserTransactions[std::make_pair(src, dest)].back().second.back();
+                if (USE_THREADS) {
+                    transactionMutex.unlock();
+                }
+                return ret;
             }
         }
         if (respId == -1) {
-            return fromRef ? refUserTransactions[std::make_pair(src, dest)][reqId].second.back() : dutUserTransactions[std::make_pair(src, dest)][reqId].second.back();
+            auto &ret = fromRef ? refUserTransactions[std::make_pair(src, dest)][reqId].second.back() : dutUserTransactions[std::make_pair(src, dest)][reqId].second.back();
+            if (USE_THREADS) {
+                transactionMutex.unlock();
+            }
+            return ret;
         }
         else {
-            return fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second[respId] : dutUserTransactions[std::make_pair(dest, src)][reqId].second[respId];
+            auto &ret = fromRef ? refUserTransactions[std::make_pair(dest, src)][reqId].second[respId] : dutUserTransactions[std::make_pair(dest, src)][reqId].second[respId];
+            if (USE_THREADS) {
+                transactionMutex.unlock();
+            }
+            return ret;
         }
     }
 
@@ -521,12 +590,17 @@ public:
      * @param dest 
      * @param index 
      * @param fromRef 
-     * @return true 
-     * @return false 
+     * @return int
      */
-    bool checkResponseExistence(const std::string &src, const std::string &dest, int index, bool fromRef) {
-        std::shared_lock<std::shared_mutex> lock(transactionMutex);
-        return fromRef ? refUserTransactions[std::make_pair(dest, src)][index].second.size() : dutUserTransactions[std::make_pair(dest, src)][index].second.size();
+    int checkResponseExistence(const std::string &src, const std::string &dest, int index, bool fromRef) {
+        if (USE_THREADS) {
+            transactionMutex.lock();
+        }
+        auto ret = fromRef ? refUserTransactions[std::make_pair(dest, src)][index].second.size() : dutUserTransactions[std::make_pair(dest, src)][index].second.size();
+        if (USE_THREADS) {
+            transactionMutex.unlock();
+        }
+        return (int)ret;
     }
 
     /**

@@ -116,6 +116,13 @@ public:
         return ret;
     }
 
+    void resetChannels() override {
+        unit->resetChannels();
+        for (auto &simulatorDriver : simulatorDrivers) {
+            simulatorDriver.second->resetChannels();
+        }
+    }
+
     bool setTransaction(std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) override {
         transaction = inTransaction;
         unit->setTransaction(inTransaction);

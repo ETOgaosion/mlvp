@@ -22,7 +22,6 @@
 #include <vector>
 #include <future>
 #include <iostream>
-#include <shared_mutex>
 
 #include "Library/types.h"
 #include "Transaction/transaction.h"
@@ -37,7 +36,7 @@ template <class T>
 class Channel {
 private:
     bool fromRef;
-    std::shared_mutex channelMutex;
+    std::mutex channelMutex;
     std::string source;
     std::shared_ptr<T> sourceDriver; //! source driver, actually a UnitDriver Child
     std::string destination;
@@ -71,6 +70,13 @@ public:
         std::cout << std::endl;
     }
 
+    void reset() {
+        data.clear();
+        multiData.clear();
+        multiDataIndex.clear();
+        responseFutures.clear();
+    }
+
     bool getFromRef() { return fromRef; }
 
     void setTransaction(std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) {
@@ -78,12 +84,20 @@ public:
     }
 
     bool hasData(const std::string &inName) {
-        std::shared_lock<std::shared_mutex> lock(channelMutex);
-        return data.contains(inName);
+        if (USE_THREADS) {
+            channelMutex.lock();
+        }
+        bool ret = data.contains(inName);
+        if (USE_THREADS) {
+            channelMutex.unlock();
+        }
+        return ret;
     }
 
-    void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse) {
-        std::unique_lock<std::shared_mutex> lock(channelMutex);
+    void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse, bool useThreads) {
+        if (USE_THREADS) {
+            channelMutex.lock();
+        }
         //! Notice that merge will not cover the raw elements, so we need to reverse
         std::swap(data, inData);
         data.merge(inData);
@@ -95,27 +109,53 @@ public:
             else {
                 transaction->addRequest(source, destination, inData, fromRef);
                 //! sync start response thread
-                if (USE_THREADS) {
+                if (USE_THREADS && useThreads) {
+                    channelMutex.unlock();
                     responseFutures.push_back(std::async(std::launch::async, [this]{
                         destDriver->drivingStep(false);
                     }));
+                    channelMutex.lock();
                 }
                 else {
+                    if (USE_THREADS) {
+                        channelMutex.unlock();
+                    }
                     destDriver->drivingStep(false);
+                    if (USE_THREADS) {
+                        channelMutex.lock();
+                    }
                 }
                 //! wait for response, just stall for some cycles, wait for data income
                 // responseFuture.get();
             }
         }
+        if (USE_THREADS) {
+            channelMutex.unlock();
+        }
     }
 
-    void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse, bool burst, bool isLast) {
-        std::unique_lock<std::shared_mutex> lock(channelMutex);
+    /**
+     * @brief Set the Data object
+     * 
+     * @param inData 
+     * @param toTransaction whether the data is set to transaction
+     * @param inIsResponse whather set transaction response, or request
+     * @param burst use burst mode to add multiple data later
+     * @param isLast is last element of burst mode
+     * @param useThreads use threads to spawn responser, <b>dut can use this, but if you use transaction mode ref, make sure this option is false</b>
+     * @param syncMode use sync mode to synchronize data read and write
+     */
+    void setData(MLVP::Type::PortsData inData, bool toTransaction, bool inIsResponse, bool burst, bool isLast, bool useThreads) {
+        if (USE_THREADS) {
+            channelMutex.lock();
+        }
         //! Notice that merge will not cover the raw elements, so we need to reverse
         if (burst) {
             for (auto &i : inData) {
                 multiData.insert(std::make_pair(i.first, i.second));
-                multiDataIndex[i.first] = 0;
+                if (!multiDataIndex.contains(i.first)) {
+                    multiDataIndex[i.first] = 0;
+                }
             }
         }
         else {
@@ -130,22 +170,44 @@ public:
             else {
                 transaction->addRequest(source, destination, inData, fromRef);
                 //! sync start response thread
-                if (USE_THREADS) {
+                if (USE_THREADS && useThreads) {
+                    channelMutex.unlock();
                     responseFutures.push_back(std::async(std::launch::async, [this]{
                         destDriver->drivingStep(false);
                     }));
+                    channelMutex.lock();
                 }
                 else {
+                    if (USE_THREADS) {
+                        channelMutex.unlock();
+                    }
                     destDriver->drivingStep(false);
+                    if (USE_THREADS) {
+                        channelMutex.lock();
+                    }
                 }
                 //! wait for response, just stall for some cycles, wait for data income
                 // responseFuture.get();
             }
         }
+        if (USE_THREADS) {
+            channelMutex.unlock();
+        }
     }
 
+    /**
+     * @brief Get the Data object
+     * @details <b>Notice that this fetch function can only deal with one port, if you need to sync multiple ports, use function below</b>
+     * @param inName 
+     * @param syncMode whether use sync mode to sync data read and write
+     * @param exist return value, get whether the data exist
+     * @return MLVP::Type::Data 
+     */
     MLVP::Type::Data getData(const std::string &inName, bool &exist) {
-        std::shared_lock<std::shared_mutex> lock(channelMutex);
+        if (USE_THREADS) {
+            channelMutex.lock();
+        }
+        exist = false;
         if (multiData.contains(inName)) {
             exist = true;
             auto range = multiData.equal_range(inName);
@@ -153,6 +215,9 @@ public:
             for (auto it = range.first; it != range.second; ++it) {
                 if (index == multiDataIndex[inName]) {
                     multiDataIndex[inName]++;
+                    if (USE_THREADS) {
+                        channelMutex.unlock();
+                    }
                     return it->second;
                 }
                 else {
@@ -160,15 +225,58 @@ public:
                 }
             }
             exist = false;
+            if (USE_THREADS) {
+                channelMutex.unlock();
+            }
             return 0;
         
         }
         if (data.contains(inName)) {
             exist = true;
-            return data[inName];
+            MLVP::Type::Data ret = data[inName];
+            if (USE_THREADS) {
+                channelMutex.unlock();
+            }
+            return ret;
+        }
+        if (USE_THREADS) {
+            channelMutex.unlock();
+        }
+        return 0;
+    }
+
+    MLVP::Type::PortsData getData(const std::vector<std::string> &inNames, bool &exist) {
+        if (USE_THREADS) {
+            channelMutex.lock();
         }
         exist = false;
-        return 0;
+        MLVP::Type::PortsData ret;
+        for (auto &inName : inNames) {
+            ret[inName] = 0;
+            if (multiData.contains(inName)) {
+                exist = true;
+                auto range = multiData.equal_range(inName);
+                int index = 0;
+                for (auto it = range.first; it != range.second; ++it) {
+                    if (index == multiDataIndex[inName]) {
+                        multiDataIndex[inName]++;
+                        ret[inName] = it->second;
+                        break;
+                    }
+                    else {
+                        index++;
+                    }
+                }
+            }
+            if (data.contains(inName)) {
+                exist = true;
+                ret[inName] = data[inName];
+            }
+        }
+        if (USE_THREADS) {
+            channelMutex.unlock();
+        }
+        return ret;
     }
 
 };

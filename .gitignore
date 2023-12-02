@@ -39,6 +39,7 @@ cmake-build-debug/*
 
 .DS_Store
 *.DS_Store
+**/.DS_Store
 *.bak
 *.dat
 .vscode

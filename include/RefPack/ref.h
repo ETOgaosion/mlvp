@@ -43,6 +43,12 @@ public:
 
     Ref(std::string inName, ChannelsType &inChannels, std::shared_ptr<MLVP::Transaction::Transaction> inTransaction) : name(std::move(inName)), channels(inChannels), transaction(std::move(inTransaction)) {}
 
+    virtual void resetChannels() {
+        for (auto & it : channels) {
+            it.second->reset();
+        }
+    }
+
     virtual bool exec() = 0;
 };
 

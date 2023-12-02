@@ -135,6 +135,9 @@ bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, in
         portTestSpecs[portName].back().value = value;
     }
     else {
+        if (endIndex < 0) {
+            endIndex = size + endIndex;
+        }
         portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value, isBitWidth)));
     }
     return res;
@@ -148,6 +151,9 @@ bool PortSpecGeneratorModel::addPortTestSpec(string portName, int startIndex, in
         portTestSpecs[portName].back().value = value;
     }
     else {
+        if (endIndex < 0) {
+            endIndex = size + endIndex;
+        }
         portTestSpecs.emplace(portName, vector<PortTestSpec>(1, PortTestSpec(portName, startIndex, endIndex, generatorType, value, isBitWidth, inConstrain, inPostHandler)));
     }
     return res;

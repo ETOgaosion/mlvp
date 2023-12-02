@@ -28,6 +28,7 @@ private:
     std::shared_ptr<RefTransDriver> refDriver; //! Actual Type is RefTransDriver
     int transPtr = 0;
     std::vector<std::shared_ptr<MLVP::Transaction::Transaction>> transactions;
+    int driveTime = 0;
 
 public:
     Driver() = delete;
@@ -69,11 +70,9 @@ public:
 
     void sendTransaction(bool toRef) {
         if (toRef) {
-            while (!refDriver->checkTransactionFinish()) { }
             refDriver->setTransaction(transactions[transPtr]);
         }
         else {
-            while (!dutDriver->checkTransactionFinish()) { }
             dutDriver->setTransaction(transactions[transPtr]);
         }
     }

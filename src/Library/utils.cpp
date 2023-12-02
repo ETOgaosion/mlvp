@@ -10,19 +10,31 @@
  */
 
 #include "Library/utils.h"
+#include <mutex>
 
 using namespace std;
 using namespace MLVP::Library;
 using namespace MLVP::Type;
 
 Data RandomGenerator::getRandomData(Data maxVal, bool throughCache, Data cacheKey) {
-    std::uniform_int_distribution<Data> distribution(0, maxVal);
+    if (USE_THREADS && throughCache) {
+        randomGeneratorMutex.lock();
+    }
+    uniform_int_distribution<Data> distribution(0, maxVal);
     if (throughCache) {
         if (dataCache.contains(cacheKey)) {
-            return dataCache[cacheKey];
+            auto ret = dataCache[cacheKey];
+            if (USE_THREADS) {
+                randomGeneratorMutex.unlock();
+            }
+            return ret;
         } else {
             dataCache[cacheKey] = distribution(rng);
-            return dataCache[cacheKey];
+            auto ret = dataCache[cacheKey];
+            if (USE_THREADS) {
+                randomGeneratorMutex.unlock();
+            }
+            return ret;
         }
     } else {
         return distribution(rng);
@@ -31,35 +43,54 @@ Data RandomGenerator::getRandomData(Data maxVal, bool throughCache, Data cacheKe
 
 Data RandomGenerator::getRandomData(Data maxVal, bool isBitWidth) {
     if (isBitWidth) {
-        std::uniform_int_distribution<Data> distribution(0, (Data)std::pow(2, maxVal) - 1);
+        uniform_int_distribution<Data> distribution(0, (Data)pow(2, maxVal) - 1);
         return distribution(rng);
     } else {
-        std::uniform_int_distribution<Data> distribution(0, maxVal);
+        uniform_int_distribution<Data> distribution(0, maxVal);
         return distribution(rng);
     }
 }
 
 Data RandomGenerator::getRandomData(Data maxVal, bool isBitWidth, bool throughCache, Data cacheKey) {
+    if (USE_THREADS && throughCache) {
+        randomGeneratorMutex.lock();
+    }
     if (isBitWidth) {
-        std::uniform_int_distribution<Data> distribution(0, (Data)std::pow(2, maxVal) - 1);
+        uniform_int_distribution<Data> distribution(0, (Data)pow(2, maxVal) - 1);
         if (throughCache) {
             if (dataCache.contains(cacheKey)) {
-                return dataCache[cacheKey];
+                auto ret = dataCache[cacheKey];
+                if (USE_THREADS) {
+                    randomGeneratorMutex.unlock();
+                }
+                return ret;
             } else {
                 dataCache[cacheKey] = distribution(rng);
-                return dataCache[cacheKey];
+                auto ret = dataCache[cacheKey];
+                if (USE_THREADS) {
+                    randomGeneratorMutex.unlock();
+                }
+                return ret;
             }
         } else {
             return distribution(rng);
         }
     } else {
-        std::uniform_int_distribution<Data> distribution(0, maxVal);
+        uniform_int_distribution<Data> distribution(0, maxVal);
         if (throughCache) {
             if (dataCache.contains(cacheKey)) {
-                return dataCache[cacheKey];
+                auto ret = dataCache[cacheKey];
+                if (USE_THREADS) {
+                    randomGeneratorMutex.unlock();
+                }
+                return ret;
             } else {
                 dataCache[cacheKey] = distribution(rng);
-                return dataCache[cacheKey];
+                auto ret = dataCache[cacheKey];
+                if (USE_THREADS) {
+                    randomGeneratorMutex.unlock();
+                }
+                return ret;
             }
         } else {
             return distribution(rng);

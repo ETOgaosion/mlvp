@@ -41,6 +41,12 @@ public:
     explicit DriverModel(int inResetCycles, bool inIsRef, std::string inName) : resetCycles(inResetCycles), isRef(inIsRef), name(std::move(inName)) {
         channels.clear();
     }
+
+    virtual void resetChannels() {
+        for (auto & it : channels) {
+            it.second->reset();
+        }
+    }
     
     virtual std::string getName() {
         return name;

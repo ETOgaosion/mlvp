@@ -26,6 +26,10 @@ public:
     ~SimulatorDriver() override = default;
     SimulatorDriver(int inResetCycles, bool isRef, std::string inSimulatorName, std::shared_ptr<MLVP::Simulator::Simulator> inSimulator) : DriverModel(inResetCycles, isRef, std::move(inSimulatorName)), simulator(std::move(inSimulator)) {}
 
+    void resetChannels() override {
+        simulator->resetChannels();
+    }
+
     /**
      * bool drivingStep(bool isLast) override
      * @brief Driving step for simulator
